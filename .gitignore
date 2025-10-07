@@ -1,0 +1,108 @@
+# ==========================
+# Node.js / Express backend
+# ==========================
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+package-lock.json
+
+# ==========================
+# Environment & secrets
+# ==========================
+.env
+.env.local
+.env.*.local
+
+# ==========================
+# Logs / runtime
+# ==========================
+logs/
+*.log
+*.out
+*.pid
+*.seed
+*.pid.lock
+
+# PM2 log & state
+.pids/
+pids/
+pm2.log
+pm2.pid
+pm2.json
+ecosystem.config.js
+
+# ==========================
+# Cache & temp files
+# ==========================
+.cache/
+.tmp/
+dist/
+build/
+coverage/
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+
+# ==========================
+# IDE / editor files
+# ==========================
+.vscode/
+.idea/
+*.iml
+
+# ==========================
+# Frontend (panel) builds
+# ==========================
+panel/dist/
+panel/node_modules/
+panel/.cache/
+panel/.parcel-cache/
+panel/.vite/
+panel/.next/
+panel/build/
+panel/*.zip
+
+# ==========================
+# OS / misc
+# ==========================
+*.bak
+*.old
+*.orig
+*.rej
+*.tmp
+*.temp
+~*
+ehthumbs.db
+desktop.ini
+
+# ==========================
+# Deployment & SSL
+# ==========================
+certs/
+*.crt
+*.key
+*.pem
+*.csr
+*.pfx
+
+# ==========================
+# Google Cloud / Docker
+# ==========================
+gcloud-debug.log
+gcloud-error.log
+.env.gcp
+Dockerfile
+docker-compose*.yml
+*.tar
+*.tgz
+
+# ==========================
+# Custom project assets
+# ==========================
+# Twitch extension zips (panel uploads)
+*.zip
+*.tar.gz
+*.tgz
