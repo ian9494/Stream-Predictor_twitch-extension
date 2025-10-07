@@ -1,5 +1,5 @@
 // src/services/marketService.js
-const { db } = require('../utils/db');
+const { db } = require('../services/store');
 const { updateLeaderboard, getTop } = require('./leaderboardService');
 
 // 開啟新市集

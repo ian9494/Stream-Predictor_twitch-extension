@@ -3,7 +3,7 @@
 // 最小記憶體狀態 
 const db = {
     currentMarket: null,    // {id, title, options: [{id, label}], status}
-    votesByMarket: {},   // { marketId -> Map (userKey -> option_id)
+    votesByMarket: new Map(),   // marketId -> Map (userKey -> option_id)
     history: [],        // 已結算
     leaderboard: new Map(), // userKey -> { totalPoints, winCount, total_votes, last_active }
 }

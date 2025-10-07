@@ -1,6 +1,6 @@
 // src/routes/admin.js
 const express = require('express');
-const { openMarker, closeMarket, getMarketStatus } = require('../services/markerService');
+const { openMarker, closeMarket, getMarketStatus } = require('../services/marketService');
 const { route } = require('./snapshot');
 
 const router = express.Router();

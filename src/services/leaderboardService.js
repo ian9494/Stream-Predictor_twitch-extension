@@ -1,5 +1,5 @@
 // src/services/leaderboardService.js
-const { db } = require('../utils/db');
+const { db } = require('../services/store');
 
 // 更新排行榜
 function updateLeaderboard(userKey, { win, points }) {

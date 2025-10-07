@@ -9,12 +9,12 @@ const cors = require('cors');
 const ratelimit = require('express-rate-limit');
 
 // 載入自訂模組
-const { corsOptions } = require('./utils/corsOptions');
-const verifyExtensionJwt = require('./middlewares/verifyExtensionJwt');
+const { corsOptions } = require('./utils/cors');
+const verifyExtensionJwt = require('./middleware/verifyExtensionJwt');
 const snapshotRouter = require('./routes/snapshot');
 const voteRouter = require('./routes/vote');
 const adminRouter = require('./routes/admin');
-const { openMarker } = require('./services/markerService');
+const { openMarker, openMarket } = require('./services/marketService');
 
 
 // 初始化 Express 應用
@@ -33,7 +33,7 @@ app.use('/vote', ratelimit({ windowMs: 30 * 1000, max: 3 }), verifyExtensionJwt,
 app.use('/admin', adminRouter);
 
 // 啟動時建立示範 market
-openMarker({
+openMarket({
     id: 'demo',
     title: '示範市集',
     options: [
