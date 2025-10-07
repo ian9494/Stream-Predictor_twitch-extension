@@ -1,0 +1,41 @@
+// src/routes/admin.js
+const express = require('express');
+const { openMarker, closeMarket, getMarketStatus } = require('../services/markerService');
+const { route } = require('./snapshot');
+
+const router = express.Router();
+
+// 檢查是否為管理員的中介軟體
+function requireAdmin(req, res, next) {
+    const token = req.headers['x-admin-token'];
+    if (!process.env.ADMIN_TOKEN || token !== process.env.ADMIN_TOKEN) {
+        return res.status(403).json({ error: 'Forbidden' });
+    }
+    next();
+}
+
+// 開啟市集 API
+router.post('/open', requireAdmin, (req, res) => {
+    const { id, title, options } = req.body || {};
+    if (!id || !title || !options || !Array.isArray(options) || options.length < 2) {
+        return res.status(400).json({ error: 'id/title/options are required and options must be an array of at least 2 items' });
+    }
+
+    openMarker({ id, title, options });
+    res.json({ ok: true });
+});
+
+// 關閉市集 API
+router.post('/close', requireAdmin, (req, res) => {
+    closeMarket();
+    res.json({ ok: true });
+});
+
+router.post('/settle', requireAdmin, (req, res) => {
+    const { correct_option_id } = req.body || {};
+    if (!correct_option_id) return res.status(400).json({ error: 'correct_option_id is required' });
+    settleMarket(correct_option_id);
+    res.json({ ok: true });
+});
+
+module.exports = router;
