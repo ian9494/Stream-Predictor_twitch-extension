@@ -45,7 +45,7 @@ openMarket({
 
 
 // 啟動伺服器
-const PORT = process.env.PORT || 8080; // 預設埠號 8080
+const PORT = process.env.PORT || 8081; // 預設埠號 8081
 app.listen(PORT, () => {
     console.log(`[EBS] Server is running on port ${PORT}`);
 });
