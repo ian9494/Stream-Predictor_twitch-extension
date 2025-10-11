@@ -5,7 +5,7 @@ const { getSnapshot } = require('../services/marketService');
 const router = express.Router();
 
 router.get('/snapshot', async (req, res) => {
-    res.json(getSnapshot());
+    res.json(await getSnapshot());
 });
 
 module.exports = router;
