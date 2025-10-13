@@ -77,10 +77,17 @@ function getSnapshot() {
     // 只取最近 10 筆歷史
     const history = db.history.slice(-10);
 
+    selfData = {selfPoints: 0, selfRank: null};
+    selfData.selfPoints = db.userPoints.get(userKey) || 0;
+    const leaderboard = getTop(10);
+    const selfRank = leaderboard.findIndex(row => row.user === userKey);
+    if (selfRank !== -1) selfData.selfRank = selfRank + 1;
+
     return {
         market,
         history,
-        leaderboard: getTop(10),
+        leaderboard: leaderboard,
+        selfData,
         server_ts: Date.now()
     };
 }

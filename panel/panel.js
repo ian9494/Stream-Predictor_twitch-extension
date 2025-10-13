@@ -1,12 +1,22 @@
 // panel.js src/panel/panel.js
+
+console.log('panel.js loaded');
+
 (() => {
+    // 手動設定版本號
+    const VERSION = '2025.10.13-2'; // 請每次更新時手動修改
+    const elVersion = document.getElementById('version');
+    if (elVersion) elVersion.textContent = `版本：${VERSION}`;
     const elMarket = document.getElementById('market');
     const elMsg = document.getElementById('msg');
+    const elLeaderboard = document.getElementById('leaderboard');
+    const elSelfInfo = document.getElementById('self-info');
 
     // 依據本機或上線設定 EBS 位址
     const EBS_BASE = (location.hostname === 'localhost')
-    ? 'http://localhost:8080'
-    : 'https://ebs.example.com'; // TODO: 替換成你的 EBS 網址
+    ? 'http://localhost:8081'
+    : 'https://specialty-outdoors-positioning-routine.trycloudflare.com' // TODO: 替換成你的本機 EBS 網址
+    // : 'https://ebs.example.com'; // TODO: 替換成你的 EBS 網址
 
     let authToken = null;
     let channelId = null;
@@ -73,17 +83,63 @@
     });
 }
 
+
+    // 渲染排行榜
+    function renderLeaderboard(leaderboard) {
+        if (!elLeaderboard) return;
+        if (!leaderboard || leaderboard.length === 0) {
+            elLeaderboard.innerHTML = '<div>暫無排行榜資料</div>';
+            return;
+        }
+        let html = '<div style="font-weight:bold;margin-bottom:4px;">🏆 排行榜</div>';
+        html += '<table style="width:100%;font-size:13px;text-align:center;"><thead><tr><th>名次</th><th>用戶</th><th>分數</th><th>勝場</th><th>投票</th><th>勝率</th></tr></thead><tbody>';
+        leaderboard.forEach((row, idx) => {
+            html += `<tr><td>${idx+1}</td><td>${row.user.replace(/^(user:|opaque:)/,'')}</td><td>${row.total_points}</td><td>${row.win_count}</td><td>${row.total_votes}</td><td>${(row.win_rate*100).toFixed(0)}%</td></tr>`;
+        });
+        html += '</tbody></table>';
+        elLeaderboard.innerHTML = html;
+    }
+
+    // 渲染個人分數/排名
+    function renderSelfInfo(selfData) {
+        if (!elSelfInfo) return;
+        if (!selfData) {
+            elSelfInfo.innerHTML = '';
+            return;
+        }
+        let html = '<div style="font-weight:bold;">你的成績</div>';
+        html += `<div>分數：<span style="color:#ffd700;font-weight:bold;">${selfData.selfPoints ?? 0}</span>　排名：<span style="color:#ffd700;font-weight:bold;">${selfData.selfRank ?? '-'}</span></div>`;
+        elSelfInfo.innerHTML = html;
+    }
+
     // 取得賭盤資料
     async function fetchSnapshots() {
         try {
             const resp = await fetch(`${EBS_BASE}/snapshot`, {
-                headers: { ...EBS_BASE(authToken ? { 'Authorization': `Bearer ${authToken}` } : {}) }
+                headers: { ...(authToken ? { 'Authorization': `Bearer ${authToken}` } : {}) }
             });
-
+            if (!resp.ok) {
+                // 嘗試取得錯誤訊息
+                let errMsg = `HTTP ${resp.status}`;
+                try {
+                    const err = await resp.json();
+                    if (err && err.message) errMsg = err.message;
+                } catch {}
+                setMsg(`無法取得賭盤資料：${errMsg}`, false);
+                elMarket.innerHTML = `<div class="card" style="color:#ff7575">無法取得賭盤資料：${errMsg}</div>`;
+                if (elLeaderboard) elLeaderboard.innerHTML = '';
+                if (elSelfInfo) elSelfInfo.innerHTML = '';
+                return;
+            }
             const data = await resp.json();
             renderSnapshots(data);
+            renderLeaderboard(data.leaderboard);
+            renderSelfInfo(data.selfData);
         } catch (e) {
             setMsg(`無法取得賭盤資料：${e.message}`, false);
+            elMarket.innerHTML = `<div class="card" style="color:#ff7575">無法取得賭盤資料：${e.message}</div>`;
+            if (elLeaderboard) elLeaderboard.innerHTML = '';
+            if (elSelfInfo) elSelfInfo.innerHTML = '';
         }
     }
 
