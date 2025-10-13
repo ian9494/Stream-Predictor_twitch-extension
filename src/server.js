@@ -5,11 +5,10 @@ require('dotenv').config();
 
 // 載入必要模組
 const express = require('express');
-const cors = require('cors');
 const ratelimit = require('express-rate-limit');
 
 // 載入自訂模組
-const { corsOptions } = require('./utils/cors');
+const cors = require('./utils/cors');
 const verifyExtensionJwt = require('./middleware/verifyExtensionJwt');
 const snapshotRouter = require('./routes/snapshot');
 const voteRouter = require('./routes/vote');
@@ -22,7 +21,7 @@ const app = express();
 
 // middeware 設定
 app.use(express.json());
-app.use(cors(corsOptions()));
+app.use(cors);
 
 // Health
 app.get('/health', (req, res) => res.json({ ok: true, ts: Date.now() }));

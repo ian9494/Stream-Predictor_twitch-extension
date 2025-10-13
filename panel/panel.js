@@ -15,8 +15,7 @@ console.log('panel.js loaded');
     // 依據本機或上線設定 EBS 位址
     const EBS_BASE = (location.hostname === 'localhost')
     ? 'http://localhost:8081'
-    : 'https://specialty-outdoors-positioning-routine.trycloudflare.com' // TODO: 替換成你的本機 EBS 網址
-    // : 'https://ebs.example.com'; // TODO: 替換成你的 EBS 網址
+    : 'https://twitch-extension-api.noctration.dev'; // EBS 上線位址
 
     let authToken = null;
     let channelId = null;

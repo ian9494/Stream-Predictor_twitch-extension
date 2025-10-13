@@ -1,25 +1,17 @@
 // src/utils/cors.js
 
-const PROD_REGEX = /\.ext-twitch\.tv$/i // 允許的生產環境網域
+const cors = require('cors');
+const allowed = [
+    /https:\/\/client-.*\.ext-twitch\.tv$/,
+    /https:\/\/extension-files\.twitch\.tv$/,
+    /https:\/\/twitch-extension-api\.noctration\.dev$/,
+];
 
-function corsOptions() {
-    const isProd = process.env.NODE_ENV === 'production';
-    return {
-        origin: (origin, callback) => {
-            if (!origin) return callback(null, true); // curl / health check
-            if (!isProd) return callback(null, true); // 開發環境允許所有來源
-            try {
-                // 解析 origin 並檢查是否符合生產環境規則
-                const host = new URL(origin).hostname;
-                if (PROD_REGEX.test(host)) return callback(null, true);
-            } catch (_) {}
-                // 無效的 URL
-                return callback(new Error('Not allowed by CORS'), false);
-            },
-        credentials: false,
-        methods: ['GET', 'POST', 'OPTIONS'],
-        allowedHeaders: ['Content-Type', 'Authorization'],
-    };
-}
+const corsMiddleware = cors({
+    origin: (o, cb) => (!o || allowed.some(r => r.test(o))) ? cb(null, true) : cb(new Error('CORS not allowed'), false),
+    credentials: true,
+    methods: ['GET', 'POST', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'X-Extension-JWT'],
+});
 
-module.exports = { corsOptions };
+module.exports = corsMiddleware;
