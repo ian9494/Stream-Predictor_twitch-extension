@@ -4,7 +4,7 @@ console.log('panel.js loaded');
 
 (() => {
     // 手動設定版本號
-    const VERSION = '2025.10.13-2'; // 請每次更新時手動修改
+    const VERSION = '2025.10.14-1'; // 請每次更新時手動修改
     const elVersion = document.getElementById('version');
     if (elVersion) elVersion.textContent = `版本：${VERSION}`;
     const elMarket = document.getElementById('market');

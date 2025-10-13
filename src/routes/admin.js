@@ -1,6 +1,6 @@
 // src/routes/admin.js
 const express = require('express');
-const { openMarker, closeMarket, getMarketStatus } = require('../services/marketService');
+const { closeMarket, getMarketStatus, openMarket } = require('../services/marketService');
 const { route } = require('./snapshot');
 
 const router = express.Router();
@@ -21,7 +21,7 @@ router.post('/open', requireAdmin, (req, res) => {
         return res.status(400).json({ error: 'id/title/options are required and options must be an array of at least 2 items' });
     }
 
-    openMarker({ id, title, options });
+    openMarket({ id, title, options });
     res.json({ ok: true });
 });
 
