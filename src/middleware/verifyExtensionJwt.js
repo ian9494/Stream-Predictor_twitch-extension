@@ -25,11 +25,12 @@ module.exports = function verifyExtensionJwt(req, res, next) {
 
         // 期待欄位
         const {
-            channelId,
+            channel_Id,
             user_id,    // 可能undefined (匿名用戶)
             opaque_user_id, // 以'U'開頭的Twitch匿名用戶ID
             role,   // viewer/moderator/broadcaster
         } = payload;
+        const channelId = channel_Id; // 修正欄位名稱
 
         // 確保必要欄位存在
         if (!channelId || !opaque_user_id) { 
