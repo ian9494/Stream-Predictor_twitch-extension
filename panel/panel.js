@@ -42,7 +42,7 @@ console.log('panel.js loaded');
         <div><strong>${m.title}</strong></div>
         <div class="small">狀態: ${m.status}</div>
         <div class="row" id="options"></div>
-        <div class="small">最後更新: ${new Date(m.deadline).toLocaleString()}</div>
+    <div class="small">最後更新: ${m.started_at ? new Date(m.started_at).toLocaleString() : ''}</div>
     `;
     elMarket.appendChild(wrapper);
 
@@ -51,9 +51,9 @@ console.log('panel.js loaded');
     m.options.forEach(opt => {
         const count = (m.counts && m.counts[opt.id]) || 0;
         const btn = document.createElement('button');
-        btn.className = 'btn option';
-        btn.textContent = `${opt.name} (${count})`;
-        btn.disabled = (m.status !== 'OPEN');
+    btn.className = 'btn option';
+    btn.textContent = `${opt.label} (${count})`;
+    btn.disabled = (m.status !== 'open');
         btn.addEventListener('click', async () => {
             try {
                 setMsg('送出投票中...');

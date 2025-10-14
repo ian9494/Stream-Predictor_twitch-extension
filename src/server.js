@@ -22,6 +22,7 @@ const app = express();
 // middeware 設定
 app.use(express.json());
 app.use(cors);
+app.set('trust proxy', 1); // 如果在 proxy 後面運行 (如 Heroku)，需要設定這個
 
 // Health
 app.get('/health', (req, res) => res.json({ ok: true, ts: Date.now() }));
