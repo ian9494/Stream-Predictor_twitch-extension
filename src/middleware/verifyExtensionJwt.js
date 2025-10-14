@@ -13,7 +13,7 @@ module.exports = function verifyExtensionJwt(req, res, next) {
         const header = req.headers['authorization'] || '';
         const [, token] = header.split(' ');
         if (!token) {
-            console.warn('Missing bearer token');
+            console.error('JWT missing bearer token');
             return res.status(401).json({ error: 'Missing bearer token' });
         }
 
@@ -25,16 +25,16 @@ module.exports = function verifyExtensionJwt(req, res, next) {
 
         // 期待欄位
         const {
-            channel_Id,
+            channel_id,
             user_id,    // 可能undefined (匿名用戶)
             opaque_user_id, // 以'U'開頭的Twitch匿名用戶ID
             role,   // viewer/moderator/broadcaster
         } = payload;
-        const channelId = channel_Id; // 修正欄位名稱
+        const channelId = channel_id;
 
         // 確保必要欄位存在
         if (!channelId || !opaque_user_id) { 
-            console.warn('Invalid token payload:', payload);
+            console.error('JWT payload missing channelId or opaque_user_id', payload);
             return res.status(401).json({ error: 'Invalid token payload' });
         }
 
