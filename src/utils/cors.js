@@ -2,7 +2,7 @@
 
 const cors = require('cors');
 const allowed = [
-    /https:\/\/client-.*\.ext-twitch\.tv$/,
+    /https:\/\/.*\.ext-twitch\.tv$/,
     /https:\/\/extension-files\.twitch\.tv$/,
     /https:\/\/twitch-extension-api\.noctration\.dev$/,
 ];
