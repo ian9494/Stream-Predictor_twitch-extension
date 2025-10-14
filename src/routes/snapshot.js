@@ -4,8 +4,13 @@ const { getSnapshot } = require('../services/marketService');
 
 const router = express.Router();
 
+const { userKeyOf } = require('../services/store');
+
 router.get('/snapshot', async (req, res) => {
-    res.json(await getSnapshot());
+    // 支援 query 參數 user_id/opaque_user_id
+    const { user_id, opaque_user_id } = req.query;
+    const userKey = userKeyOf({ user_id, opaque_user_id });
+    res.json(await getSnapshot(userKey));
 });
 
 module.exports = router;

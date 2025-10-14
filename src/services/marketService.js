@@ -66,27 +66,39 @@ function tallyCounts(marketId, options) {
 }
 
 // 取得當前市集快照
-function getSnapshot() {
+function getSnapshot(userKey) {
     const market = db.currentMarkets
-    ? { 
-        ...db.currentMarkets,
-        counts: tallyCounts(db.currentMarkets.id, db.currentMarkets.options)
-    }
-    : null;
+        ? {
+            ...db.currentMarkets,
+            counts: tallyCounts(db.currentMarkets.id, db.currentMarkets.options)
+        }
+        : null;
 
     // 只取最近 10 筆歷史
     const history = db.history.slice(-10);
 
-    selfData = {selfPoints: 0, selfRank: null};
-    selfData.selfPoints = db.userPoints.get(userKey) || 0;
+    // 個人成績
+    let selfData = { selfPoints: 0, selfRank: null, selfVotes: 0, selfWin: 0 };
+    if (userKey) {
+        const row = db.leaderboard.get(userKey);
+        if (row) {
+            selfData.selfPoints = row.total_points || 0;
+            selfData.selfVotes = row.total_votes || 0;
+            selfData.selfWin = row.win_count || 0;
+        }
+        // 計算排名（全排行榜）
+        const all = Array.from(db.leaderboard.entries())
+            .sort((a, b) => (b[1].total_points - a[1].total_points) || ((b[1].win_count / (b[1].total_votes||1)) - (a[1].win_count / (a[1].total_votes||1))));
+        const idx = all.findIndex(([k]) => k === userKey);
+        if (idx !== -1) selfData.selfRank = idx + 1;
+    }
+
     const leaderboard = getTop(10);
-    const selfRank = leaderboard.findIndex(row => row.user === userKey);
-    if (selfRank !== -1) selfData.selfRank = selfRank + 1;
 
     return {
         market,
         history,
-        leaderboard: leaderboard,
+        leaderboard,
         selfData,
         server_ts: Date.now()
     };
