@@ -12,7 +12,10 @@ module.exports = function verifyExtensionJwt(req, res, next) {
         // 從 Authorization 標頭取得 Bearer token
         const header = req.headers['authorization'] || '';
         const [, token] = header.split(' ');
-        if (!token) return res.status(401).json({ error: 'Missing bearer token' });
+        if (!token) {
+            console.warn('Missing bearer token');
+            return res.status(401).json({ error: 'Missing bearer token' });
+        }
 
         // 驗證 JWT
         const payload = jwt.verify(token, secret, {
@@ -30,11 +33,12 @@ module.exports = function verifyExtensionJwt(req, res, next) {
 
         // 確保必要欄位存在
         if (!channelId || !opaque_user_id) { 
+            console.warn('Invalid token payload:', payload);
             return res.status(401).json({ error: 'Invalid token payload' });
         }
 
         // 將驗證後的資訊附加到 req 物件，供後續中介軟體或路由使用
-        req.twitch = {channelId, user_id, opaque_user_id, role, token};
+        req.twitch = { channelId, user_id, opaque_user_id, role, token };
         next(); // 繼續處理請求
     } catch (err) {
         // JWT 驗證失敗
