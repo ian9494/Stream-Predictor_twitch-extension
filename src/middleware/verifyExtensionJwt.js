@@ -38,7 +38,7 @@ module.exports = function verifyExtensionJwt(req, res, next) {
         next(); // 繼續處理請求
     } catch (err) {
         // JWT 驗證失敗
-        console.error('JWT verification error:', err);
-        return res.status(401).json({ error: 'JWT verification failed' });
+        console.error('JWT verification error:', err && (err.stack || err.message || err));
+        return res.status(401).json({ error: 'JWT verification failed', detail: err && err.message });
     }
 };
