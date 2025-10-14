@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <title>Shotcall Market Control</title>
+    <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+    <header>
+        <h1>Shotcall Market Control</h1>
+        <button id="refresh" class="secondary">Refresh Snapshot</button>
+    </header>
+
+    <section id="status" class="card hidden">
+        <span id="status-text"></span>
+    </section>
+
+    <section class="card">
+        <h2>Connection</h2>
+        <label>
+            API Base URL
+            <input type="url" id="api-base" placeholder="https://your-shotcall-server.example.com">
+        </label>
+        <label>
+            Admin Token
+            <input type="password" id="admin-token" placeholder="Required for admin endpoints">
+        </label>
+        <div class="actions">
+            <button id="save-settings">Save Settings</button>
+            <button id="clear-settings" class="danger secondary">Clear</button>
+        </div>
+    </section>
+
+    <section class="card">
+        <h2>Current Market</h2>
+        <div id="market-summary" class="empty">No market loaded yet.</div>
+    </section>
+
+    <section class="card">
+        <h2>Open Market</h2>
+        <label>
+            Market ID
+            <input type="text" id="open-id" placeholder="e.g. match-2025-10-15">
+        </label>
+        <label>
+            Title
+            <input type="text" id="open-title" placeholder="Who wins map 3?">
+        </label>
+        <div id="options-container"></div>
+        <div class="actions">
+            <button id="add-option" class="secondary">Add Option</button>
+        </div>
+        <button id="open-market" class="primary">Open Market</button>
+    </section>
+
+    <section class="card">
+        <h2>Close Market</h2>
+        <p class="card-help">Prevent new votes while you review the outcome.</p>
+        <button id="close-market" class="primary">Close Market</button>
+    </section>
+
+    <section class="card">
+        <h2>Settle Market</h2>
+        <label>
+            Winning Option
+            <select id="settle-option"></select>
+        </label>
+        <label id="settle-custom-wrapper" class="hidden">
+            Custom Option ID
+            <input type="text" id="settle-custom" placeholder="Enter winning option ID">
+        </label>
+        <p class="card-help">Pick the option that matches reality. Settling distributes winnings immediately.</p>
+        <button id="settle-market" class="primary danger">Settle Market</button>
+    </section>
+
+    <template id="option-template">
+        <div class="option-row">
+            <label>
+                Option ID
+                <input type="text" class="option-id" placeholder="A">
+            </label>
+            <label>
+                Label
+                <input type="text" class="option-label" placeholder="Team A">
+            </label>
+            <button class="remove-option secondary danger" title="Remove option">✕</button>
+        </div>
+    </template>
+
+    <script src="popup.js" type="module"></script>
+</body>
+</html>

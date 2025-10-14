@@ -1,0 +1,169 @@
+:root {
+    color-scheme: light dark;
+    font-family: "Segoe UI", Arial, sans-serif;
+    font-size: 14px;
+}
+
+body {
+    margin: 0;
+    padding: 12px;
+    width: 360px;
+    background: #101621;
+    color: #f1f5ff;
+}
+
+h1, h2 {
+    margin: 0;
+    font-size: 16px;
+}
+
+h2 {
+    margin-bottom: 8px;
+    font-size: 15px;
+}
+
+header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 12px;
+}
+
+button {
+    border: none;
+    border-radius: 6px;
+    padding: 6px 12px;
+    cursor: pointer;
+    font-weight: 600;
+    transition: transform 0.1s ease, opacity 0.1s ease;
+}
+
+button:hover {
+    opacity: 0.9;
+}
+
+button:active {
+    transform: scale(0.97);
+}
+
+button:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+button.primary {
+    background: linear-gradient(135deg, #5b8aff, #7f63ff);
+    color: #fff;
+}
+
+button.secondary {
+    background: rgba(255, 255, 255, 0.12);
+    color: #fff;
+}
+
+button.danger {
+    background: linear-gradient(135deg, #ff5252, #ff6f96);
+}
+
+.card {
+    background: rgba(26, 31, 41, 0.92);
+    border-radius: 10px;
+    padding: 12px;
+    margin-bottom: 12px;
+    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.3);
+}
+
+.card-help {
+    margin: 0 0 8px;
+    font-size: 12px;
+    color: #b4bfd4;
+}
+
+label {
+    display: block;
+    margin-bottom: 8px;
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: #b4bfd4;
+}
+
+label input,
+select {
+    width: 100%;
+    margin-top: 4px;
+    padding: 8px;
+    border-radius: 6px;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    background: rgba(6, 10, 18, 0.9);
+    color: #f1f5ff;
+    font-size: 14px;
+}
+
+.actions {
+    display: flex;
+    gap: 8px;
+}
+
+.actions button {
+    flex: 1;
+}
+
+.option-row {
+    display: flex;
+    align-items: flex-end;
+    gap: 8px;
+    margin-bottom: 8px;
+}
+
+.option-row label {
+    flex: 1;
+    margin-bottom: 0;
+}
+
+.remove-option {
+    padding: 8px 10px;
+}
+
+#market-summary {
+    font-size: 13px;
+    line-height: 1.4;
+}
+
+#market-summary .options {
+    margin-top: 6px;
+    padding-left: 14px;
+}
+
+#market-summary .option-item {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 2px;
+}
+
+.empty {
+    color: #8897b3;
+    font-style: italic;
+}
+
+#status {
+    border: 1px solid transparent;
+    font-size: 13px;
+    padding: 10px;
+}
+
+#status.success {
+    border-color: rgba(82, 196, 26, 0.6);
+    background: rgba(34, 197, 94, 0.1);
+    color: #86f7a7;
+}
+
+#status.error {
+    border-color: rgba(255, 99, 132, 0.6);
+    background: rgba(255, 99, 132, 0.1);
+    color: #ff9fb1;
+}
+
+.hidden {
+    display: none;
+}

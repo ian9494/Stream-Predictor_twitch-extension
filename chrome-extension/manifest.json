@@ -1,0 +1,17 @@
+{
+  "manifest_version": 3,
+  "name": "Shotcall Market Control",
+  "description": "Popup interface for streamers and moderators to manage Shotcall betting markets.",
+  "version": "0.1.0",
+  "action": {
+    "default_title": "Shotcall Market Control",
+    "default_popup": "popup.html"
+  },
+  "permissions": [
+    "storage"
+  ],
+  "host_permissions": [
+    "http://*/*",
+    "https://*/*"
+  ]
+}
