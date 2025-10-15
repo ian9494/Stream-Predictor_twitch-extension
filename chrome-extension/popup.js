@@ -6,6 +6,7 @@ const FALLBACK_STORAGE_KEY = 'shotcall-market-control-settings';
 
 // 快速取得所有會用到的 DOM 元素
 const elements = {
+    adminUsername: document.getElementById('admin-username'),
     refresh: document.getElementById('refresh'),
     status: document.getElementById('status'),
     statusText: document.getElementById('status-text'),
@@ -24,8 +25,22 @@ const elements = {
     settleCustomWrapper: document.getElementById('settle-custom-wrapper'),
     settleCustom: document.getElementById('settle-custom'),
     marketSummary: document.getElementById('market-summary'),
-    optionTemplate: document.getElementById('option-template')
-};
+    optionTemplate: document.getElementById('option-template'),
+    adminUsername: document.getElementById('admin-username')
+    };
+
+// 內建管理員 token 對應表（與後端 admin-tokens.json 保持同步）
+const ADMIN_TOKENS = [
+    { "username": "ian9494", "token": "fee8b42603da" },
+    { "username": "kant0211", "token": "a0d95e83517d" }
+];
+
+// 根據 token 找 username
+function getUsernameByToken(token) {
+    if (!token) return '';
+    const found = ADMIN_TOKENS.find(u => u.token === token.trim());
+    return found ? found.username : 'Access Denied';
+}
 
 // 儲存與取得設定（優先用 chrome.storage，同步到 Google 帳號；否則用 localStorage）
 const storage = (() => {
@@ -135,6 +150,8 @@ async function loadSettings() {
         state.baseUrl = DEFAULT_BASE_URL;
         state.adminToken = adminToken;
         elements.adminToken.value = adminToken;
+        // 顯示對應的 username
+        elements.adminUsername.textContent = getUsernameByToken(adminToken) ? `帳號：${getUsernameByToken(adminToken)}` : '';
     } catch (error) {
         console.error('Failed to load settings', error);
         setStatus(`Failed to load saved settings: ${error.message ?? error}`, 'error');
@@ -152,6 +169,8 @@ async function saveSettings() {
         await storage.set({ adminToken });
         state.baseUrl = DEFAULT_BASE_URL;
         state.adminToken = adminToken;
+        // 顯示對應的 username
+        elements.adminUsername.textContent = getUsernameByToken(adminToken) ? `帳號：${getUsernameByToken(adminToken)}` : '';
         setStatus('Token saved.', 'success');
         await refreshSnapshot(false);
     } catch (error) {
@@ -166,6 +185,7 @@ async function clearSettings() {
         state.baseUrl = DEFAULT_BASE_URL;
         state.adminToken = '';
         elements.adminToken.value = '';
+        elements.adminUsername.textContent = '';
         setStatus('Token cleared.', 'success');
     } catch (error) {
         setStatus(`Unable to clear token: ${error.message ?? error}`, 'error');
@@ -373,7 +393,7 @@ async function handleSettleMarket() {
             method: 'POST',
             body: { correct_option_id: optionId }
         });
-        setStatus('Market settled and winnings distributed.', 'success');
+        setStatus('本次預測已結算並發布分數', 'success');
         await refreshSnapshot(false);
     } catch (error) {
         setStatus(`Failed to settle market: ${error.message}`, 'error');

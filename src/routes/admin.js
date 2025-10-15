@@ -5,11 +5,12 @@ const { route } = require('./snapshot');
 
 const router = express.Router();
 
-// 檢查是否為管理員的中介軟體
+// 多管理員 token 驗證
+const { isValidAdminToken } = require('../utils/adminTokens');
 function requireAdmin(req, res, next) {
     const token = req.headers['x-admin-token'];
-    if (!process.env.ADMIN_TOKEN || token !== process.env.ADMIN_TOKEN) {
-        return res.status(403).json({ error: 'Forbidden' });
+    if (!isValidAdminToken(token)) {
+        return res.status(403).json({ error: '存取權限不足, 無效的管理員代碼' });
     }
     next();
 }

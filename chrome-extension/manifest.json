@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "name": "Stream predictor manager",
   "description": "Popup interface for streamers and moderators to manage betting markets.",
-  "version": "dev-0.1.1",
+  "version": "0.1.2",
   "action": {
     "default_title": "Stream predictor manager",
     "default_popup": "popup.html"
