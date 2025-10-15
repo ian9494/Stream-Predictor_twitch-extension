@@ -25,13 +25,15 @@ async function getTwitchUserName(userId) {
         }
     });
     const data = await resp.json();
-    let name = userId;
     if (data.data && data.data.length > 0) {
-        name = data.data[0].display_name || data.data[0].login;
+        const name = data.data[0].display_name || data.data[0].login;
+        cache.set(userId, { name, ts: Date.now() });
+        console.log(`[twitchUserCache] fetched from API userId=${userId}, name=${name}`);
+        return name;
+    } else {
+        console.warn(`[twitchUserCache] Twitch API 查無 userId=${userId}，不寫入 cache`);
+        return '';
     }
-    cache.set(userId, { name, ts: Date.now() });
-    console.log(`[twitchUserCache] fetched from API userId=${userId}, name=${name}`);
-    return name;
 }
 
 module.exports = { getTwitchUserName };
