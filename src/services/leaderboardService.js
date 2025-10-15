@@ -37,4 +37,4 @@ function getTop(n = 10) {
     return arr.slice(0, n);
 }
 
-module.exports = { updateLeaderboard, getTop };
+module.exports = { updateLeaderboard, getTop, extractDisplayName };
