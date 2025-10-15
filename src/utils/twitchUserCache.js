@@ -1,6 +1,6 @@
 // src/utils/twitchUserCache.js
 // 快取 user_id -> twitch display_name
-const fetch = require('node-fetch');
+// const fetch = require('node-fetch');
 
 const cache = new Map(); // user_id -> { name, ts }
 const CACHE_TTL = 60 * 60 * 1000; // 1小時

@@ -1,8 +1,7 @@
 ﻿// panel.js src/panel/panel.js
 
-console.log('panel.js loaded');
-
-(() => {
+document.addEventListener('DOMContentLoaded', function() {
+    console.log('panel.js loaded', window.Twitch, window.Twitch && window.Twitch.ext);
     // 手動設定版本號
     const VERSION = '2025.10.15-4'; // 請每次更新時手動修改
     const elVersion = document.getElementById('version');
@@ -168,19 +167,21 @@ console.log('panel.js loaded');
 
     // twitch extension helper
     if (window.Twitch && window.Twitch.ext) {
+        console.log('Twitch.ext is available');
         window.Twitch.ext.onAuthorized(auth => {
+            console.log('[panel] onAuthorized', auth);
             authToken = auth.token;
             channelId = auth.channelId;
             userId = auth.userId;
             opaqueUserId = auth.opaqueUserId;
-            console.log('[panel] onAuthorized', { userId, opaqueUserId, channelId });
             fetchSnapshots();
             startPolling();
         });
     } else {
+        console.log('Twitch.ext is NOT available');
         // 非hosted Test環境 (localhost)
         fetchSnapshots();
         startPolling();
     }
 
-})();
+});
