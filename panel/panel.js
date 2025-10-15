@@ -33,6 +33,8 @@ console.log('panel.js loaded');
 
     let authToken = null;
     let channelId = null;
+    let userId = null;
+    let opaqueUserId = null;
 
     // 設定訊息顯示
     function setMsg(text, ok = true) {
@@ -128,7 +130,15 @@ console.log('panel.js loaded');
     // 取得賭盤資料
     async function fetchSnapshots() {
         try {
-            const resp = await fetch(`${EBS_BASE}/snapshot`, {
+            // 組合 query string
+            let query = '';
+            if (userId) {
+                query = `?user_id=${encodeURIComponent(userId)}`;
+            } else if (opaqueUserId) {
+                query = `?opaque_user_id=${encodeURIComponent(opaqueUserId)}`;
+            }
+            console.log('[panel] fetchSnapshots userId:', userId, 'opaqueUserId:', opaqueUserId, 'query:', query);
+            const resp = await fetch(`${EBS_BASE}/snapshot${query}`, {
                 headers: { ...(authToken ? { 'Authorization': `Bearer ${authToken}` } : {}) }
             });
             if (!resp.ok) {
@@ -161,6 +171,9 @@ console.log('panel.js loaded');
         window.Twitch.ext.onAuthorized(auth => {
             authToken = auth.token;
             channelId = auth.channelId;
+            userId = auth.userId;
+            opaqueUserId = auth.opaqueUserId;
+            console.log('[panel] onAuthorized', { userId, opaqueUserId, channelId });
             fetchSnapshots();
             startPolling();
         });
