@@ -1,6 +1,7 @@
 // src/services/marketService.js
 const { db } = require('../services/store');
 const { updateLeaderboard, getTop, extractDisplayName } = require('./leaderboardService');
+const { getTwitchUserName } = require('../utils/twitchUserCache');
 
 // 開啟新市集
 function openMarket({ id, title, options }) {
@@ -66,7 +67,8 @@ function tallyCounts(marketId, options) {
 }
 
 // 取得當前市集快照
-function getSnapshot(userKey) {
+
+async function getSnapshot(userKey) {
     console.log('getSnapshot userKey:', userKey);
     const market = db.currentMarkets
         ? {
@@ -92,7 +94,9 @@ function getSnapshot(userKey) {
             .sort((a, b) => (b[1].total_points - a[1].total_points) || ((b[1].win_count / (b[1].total_votes||1)) - (a[1].win_count / (a[1].total_votes||1))));
         const idx = all.findIndex(([k]) => k === userKey);
         if (idx !== -1) selfData.selfRank = idx + 1;
-        selfData.displayName = extractDisplayName(userKey);
+        // 取得 Twitch displayName
+        selfData.displayName = await getTwitchUserName(userKey.startsWith('user:') ? userKey.slice(5) : '');
+        console.log('selfData.displayName:', selfData.displayName); // debug log
     }
 
     const leaderboard = getTop(10);

@@ -12,7 +12,10 @@ async function getTwitchUserName(userId) {
     if (!userId) return '';
     // 先查快取
     const cached = cache.get(userId);
-    if (cached && Date.now() - cached.ts < CACHE_TTL) return cached.name;
+    if (cached && Date.now() - cached.ts < CACHE_TTL) {
+        console.log(`[twitchUserCache] cache hit for userId=${userId}, name=${cached.name}`);
+        return cached.name;
+    }
     // 查 Twitch API
     const url = `https://api.twitch.tv/helix/users?id=${userId}`;
     const resp = await fetch(url, {
@@ -27,6 +30,7 @@ async function getTwitchUserName(userId) {
         name = data.data[0].display_name || data.data[0].login;
     }
     cache.set(userId, { name, ts: Date.now() });
+    console.log(`[twitchUserCache] fetched from API userId=${userId}, name=${name}`);
     return name;
 }
 
