@@ -1,10 +1,10 @@
 {
   "manifest_version": 3,
-  "name": "Shotcall Market Control",
-  "description": "Popup interface for streamers and moderators to manage Shotcall betting markets.",
-  "version": "0.1.0",
+  "name": "Stream predictor manager",
+  "description": "Popup interface for streamers and moderators to manage betting markets.",
+  "version": "dev-0.1.1",
   "action": {
-    "default_title": "Shotcall Market Control",
+    "default_title": "Stream predictor manager",
     "default_popup": "popup.html"
   },
   "permissions": [

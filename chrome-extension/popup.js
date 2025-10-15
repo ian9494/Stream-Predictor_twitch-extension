@@ -1,12 +1,15 @@
+// API 伺服器的固定 base URL
 const DEFAULT_BASE_URL = 'https://twitch-extension-api.noctration.dev/';
-const STORAGE_KEYS = ['baseUrl', 'adminToken'];
+// 只儲存 adminToken
+const STORAGE_KEYS = ['adminToken'];
 const FALLBACK_STORAGE_KEY = 'shotcall-market-control-settings';
 
+// 快速取得所有會用到的 DOM 元素
 const elements = {
     refresh: document.getElementById('refresh'),
     status: document.getElementById('status'),
     statusText: document.getElementById('status-text'),
-    apiBase: document.getElementById('api-base'),
+    // apiBase: document.getElementById('api-base'),
     adminToken: document.getElementById('admin-token'),
     saveSettings: document.getElementById('save-settings'),
     clearSettings: document.getElementById('clear-settings'),
@@ -24,6 +27,7 @@ const elements = {
     optionTemplate: document.getElementById('option-template')
 };
 
+// 儲存與取得設定（優先用 chrome.storage，同步到 Google 帳號；否則用 localStorage）
 const storage = (() => {
     if (typeof chrome !== 'undefined' && chrome.storage?.sync) {
         return {
@@ -82,20 +86,14 @@ const storage = (() => {
     };
 })();
 
+// 前端狀態（目前 baseUrl、adminToken、快照資料）
 const state = {
     baseUrl: DEFAULT_BASE_URL,
     adminToken: '',
     snapshot: null
 };
 
-function normalizeBaseUrl(input) {
-    let value = (input || '').trim();
-    if (!value) return '';
-    if (!/^https?:\/\//i.test(value)) value = `https://${value}`;
-    if (!value.endsWith('/')) value = `${value}/`;
-    return value;
-}
-
+// 顯示狀態訊息（info/success/error）
 function setStatus(message, type = 'info') {
     if (!elements.status) return;
     elements.status.classList.remove('hidden', 'success', 'error', 'info');
@@ -104,12 +102,14 @@ function setStatus(message, type = 'info') {
     elements.statusText.textContent = message;
 }
 
+// 清除狀態訊息
 function clearStatus() {
     if (!elements.status) return;
     elements.status.classList.add('hidden');
     elements.statusText.textContent = '';
 }
 
+// 按鈕進入 loading 狀態，避免重複點擊
 function setLoading(button, loading, label = 'Working…') {
     if (!button) return;
     if (loading) {
@@ -127,14 +127,13 @@ function setLoading(button, loading, label = 'Working…') {
     }
 }
 
+// 載入儲存的 adminToken 設定
 async function loadSettings() {
     try {
         const data = await storage.get(STORAGE_KEYS);
-        const baseUrl = normalizeBaseUrl(data.baseUrl) || DEFAULT_BASE_URL;
         const adminToken = (data.adminToken || '').trim();
-        state.baseUrl = baseUrl;
+        state.baseUrl = DEFAULT_BASE_URL;
         state.adminToken = adminToken;
-        elements.apiBase.value = baseUrl;
         elements.adminToken.value = adminToken;
     } catch (error) {
         console.error('Failed to load settings', error);
@@ -142,43 +141,38 @@ async function loadSettings() {
     }
 }
 
+// 儲存 adminToken 設定
 async function saveSettings() {
-    const baseUrl = normalizeBaseUrl(elements.apiBase.value);
     const adminToken = elements.adminToken.value.trim();
-
-    if (!baseUrl) {
-        setStatus('API Base URL is required.', 'error');
-        return;
-    }
     if (!adminToken) {
         setStatus('Admin Token is required.', 'error');
         return;
     }
-
     try {
-        await storage.set({ baseUrl, adminToken });
-        state.baseUrl = baseUrl;
+        await storage.set({ adminToken });
+        state.baseUrl = DEFAULT_BASE_URL;
         state.adminToken = adminToken;
-        setStatus('Settings saved.', 'success');
+        setStatus('Token saved.', 'success');
         await refreshSnapshot(false);
     } catch (error) {
-        setStatus(`Unable to save settings: ${error.message ?? error}`, 'error');
+        setStatus(`Unable to save token: ${error.message ?? error}`, 'error');
     }
 }
 
+// 清除 adminToken 設定
 async function clearSettings() {
     try {
         await storage.remove(STORAGE_KEYS);
         state.baseUrl = DEFAULT_BASE_URL;
         state.adminToken = '';
-        elements.apiBase.value = state.baseUrl;
         elements.adminToken.value = '';
-        setStatus('Settings cleared.', 'success');
+        setStatus('Token cleared.', 'success');
     } catch (error) {
-        setStatus(`Unable to clear settings: ${error.message ?? error}`, 'error');
+        setStatus(`Unable to clear token: ${error.message ?? error}`, 'error');
     }
 }
 
+// 新增一個選項輸入列（for 開盤）
 function addOptionRow(option = {}) {
     const clone = elements.optionTemplate.content.firstElementChild.cloneNode(true);
     const idInput = clone.querySelector('.option-id');
@@ -202,6 +196,7 @@ function addOptionRow(option = {}) {
     updateRemoveButtons();
 }
 
+// 根據選項數量決定移除按鈕是否可用
 function updateRemoveButtons() {
     const rows = [...elements.optionsContainer.querySelectorAll('.option-row')];
     const shouldDisable = rows.length <= 2;
@@ -211,6 +206,7 @@ function updateRemoveButtons() {
     });
 }
 
+// 收集所有選項欄位的值，並檢查格式
 function collectOptions() {
     const rows = [...elements.optionsContainer.querySelectorAll('.option-row')];
     const options = [];
@@ -236,20 +232,18 @@ function collectOptions() {
     return options;
 }
 
+// 驗證 adminToken 是否已輸入，並回傳設定
 function requireSettings() {
-    const baseUrl = normalizeBaseUrl(elements.apiBase.value);
     const adminToken = elements.adminToken.value.trim();
-    if (!baseUrl) {
-        throw new Error('Set the API Base URL first.');
-    }
     if (!adminToken) {
         throw new Error('Set the Admin Token first.');
     }
-    state.baseUrl = baseUrl;
+    state.baseUrl = DEFAULT_BASE_URL;
     state.adminToken = adminToken;
-    return { baseUrl, adminToken };
+    return { baseUrl: DEFAULT_BASE_URL, adminToken };
 }
 
+// 封裝 fetch，帶上 adminToken，與錯誤處理
 async function apiFetch(path, { method = 'GET', body, expectJson = true } = {}) {
     const url = new URL(path, state.baseUrl);
     const headers = {
@@ -285,6 +279,7 @@ async function apiFetch(path, { method = 'GET', body, expectJson = true } = {}) 
     }
 }
 
+// 處理「開啟市集」按鈕事件
 async function handleOpenMarket() {
     let options;
     try {
@@ -324,6 +319,7 @@ async function handleOpenMarket() {
     }
 }
 
+// 處理「關閉市集」按鈕事件
 async function handleCloseMarket() {
     try {
         requireSettings();
@@ -346,6 +342,7 @@ async function handleCloseMarket() {
     }
 }
 
+// 處理「結算市集」按鈕事件
 async function handleSettleMarket() {
     try {
         requireSettings();
@@ -385,6 +382,7 @@ async function handleSettleMarket() {
     }
 }
 
+// 重新取得市集快照，更新畫面
 async function refreshSnapshot(showStatus = true) {
     try {
         requireSettings();
@@ -407,6 +405,7 @@ async function refreshSnapshot(showStatus = true) {
     }
 }
 
+// 將市集快照渲染到畫面
 function renderSnapshot(snapshot) {
     const container = elements.marketSummary;
     if (!container) return;
@@ -439,6 +438,7 @@ function renderSnapshot(snapshot) {
     updateSettleOptions(options);
 }
 
+// 更新結算下拉選單的選項
 function updateSettleOptions(options) {
     elements.settleOption.innerHTML = '';
 
@@ -463,6 +463,7 @@ function updateSettleOptions(options) {
     toggleCustomSettle(false);
 }
 
+// 切換自訂結算選項輸入欄位顯示/隱藏
 function toggleCustomSettle(show) {
     if (show) {
         elements.settleCustomWrapper.classList.remove('hidden');
@@ -472,6 +473,7 @@ function toggleCustomSettle(show) {
     }
 }
 
+// 預設至少有兩個選項欄位
 function ensureOptionRows() {
     if (elements.optionsContainer.children.length === 0) {
         addOptionRow({ id: 'A', label: 'Team A' });
@@ -479,6 +481,7 @@ function ensureOptionRows() {
     }
 }
 
+// 綁定所有按鈕與互動事件
 function attachEventListeners() {
     elements.saveSettings.addEventListener('click', (event) => {
         event.preventDefault();
@@ -520,6 +523,7 @@ function attachEventListeners() {
     });
 }
 
+// 初始化頁面
 async function init() {
     ensureOptionRows();
     attachEventListeners();
@@ -531,4 +535,5 @@ async function init() {
     }
 }
 
+// 頁面載入完成後執行初始化
 document.addEventListener('DOMContentLoaded', init);
