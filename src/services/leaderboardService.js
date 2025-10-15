@@ -20,6 +20,7 @@ function updateLeaderboard(userKey, { win, points }) {
 
 function extractDisplayName(userKey) {
     // user:12345678 取 12345678，opaque:xxxx 取 xxxx
+    console.log('extractDisplayName:', userKey); // 調試用
     if (!userKey) return '';
     if (userKey.startsWith('user:')) return userKey.slice(5);
     if (userKey.startsWith('opaque:')) return userKey.slice(7);
