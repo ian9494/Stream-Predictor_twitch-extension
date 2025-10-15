@@ -1,5 +1,6 @@
 body { font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif; margin: 0; padding: 12px; background: #0f0f12; color: #eaeaea; }
 #app { max-width: 520px; margin: 0 auto; }
+#version { font-size:12px; color:#888; margin-bottom:8px; }
 .card { background: #1a1a20; border-radius: 12px; padding: 12px; box-shadow: 0 2px 12px rgba(0,0,0,0.25); }
 .row { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 8px; }
 .btn { padding: 10px 12px; border: none; border-radius: 10px; cursor: pointer; background: #9147ff; color: white; }

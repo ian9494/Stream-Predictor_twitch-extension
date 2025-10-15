@@ -1,16 +1,30 @@
-// panel.js src/panel/panel.js
+﻿// panel.js src/panel/panel.js
 
 console.log('panel.js loaded');
 
 (() => {
     // 手動設定版本號
-    const VERSION = '2025.10.14-1'; // 請每次更新時手動修改
+    const VERSION = '2025.10.15-4'; // 請每次更新時手動修改
     const elVersion = document.getElementById('version');
     if (elVersion) elVersion.textContent = `版本：${VERSION}`;
     const elMarket = document.getElementById('market');
     const elMsg = document.getElementById('msg');
     const elLeaderboard = document.getElementById('leaderboard');
     const elSelfInfo = document.getElementById('self-info');
+
+    let pollTimer = null;
+
+    function startPolling() {
+        if (pollTimer) clearInterval(pollTimer);
+        pollTimer = setInterval(() => {
+            fetchSnapshots()
+        }, 3000); // 每 3 秒更新一次
+    }
+
+    function stopPolling() {
+        if (pollTimer) clearInterval(pollTimer);
+        pollTimer = null;
+    }
 
     // 依據本機或上線設定 EBS 位址
     const EBS_BASE = (location.hostname === 'localhost')
@@ -148,10 +162,12 @@ console.log('panel.js loaded');
             authToken = auth.token;
             channelId = auth.channelId;
             fetchSnapshots();
+            startPolling();
         });
     } else {
         // 非hosted Test環境 (localhost)
         fetchSnapshots();
+        startPolling();
     }
 
 })();

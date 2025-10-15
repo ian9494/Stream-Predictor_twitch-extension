@@ -66,6 +66,7 @@ function tallyCounts(marketId, options) {
 }
 
 // 取得當前市集快照
+const { extractDisplayName } = require('./leaderboardService');
 function getSnapshot(userKey) {
     const market = db.currentMarkets
         ? {
@@ -78,7 +79,7 @@ function getSnapshot(userKey) {
     const history = db.history.slice(-10);
 
     // 個人成績
-    let selfData = { selfPoints: 0, selfRank: null, selfVotes: 0, selfWin: 0 };
+    let selfData = { selfPoints: 0, selfRank: null, selfVotes: 0, selfWin: 0, displayName: '' };
     if (userKey) {
         const row = db.leaderboard.get(userKey);
         if (row) {
@@ -91,6 +92,7 @@ function getSnapshot(userKey) {
             .sort((a, b) => (b[1].total_points - a[1].total_points) || ((b[1].win_count / (b[1].total_votes||1)) - (a[1].win_count / (a[1].total_votes||1))));
         const idx = all.findIndex(([k]) => k === userKey);
         if (idx !== -1) selfData.selfRank = idx + 1;
+        selfData.displayName = extractDisplayName(userKey);
     }
 
     const leaderboard = getTop(10);
