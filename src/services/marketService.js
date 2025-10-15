@@ -66,7 +66,6 @@ function tallyCounts(marketId, options) {
 }
 
 // 取得當前市集快照
-const { extractDisplayName } = require('./leaderboardService');
 function getSnapshot(userKey) {
     console.log('getSnapshot userKey:', userKey);
     const market = db.currentMarkets
