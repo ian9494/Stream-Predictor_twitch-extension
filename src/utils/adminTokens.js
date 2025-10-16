@@ -14,10 +14,14 @@ function getAdminTokens() {
     }
 }
 
-function isValidAdminToken(token) {
-    if (!token) return false;
+function getAdminByToken(token) {
+    if (!token) return null;
     const tokens = getAdminTokens();
-    return tokens.some(admin => admin.token === token);
+    return tokens.find(admin => admin.token === token) || null;
 }
 
-module.exports = { isValidAdminToken };
+function isValidAdminToken(token) {
+    return !!getAdminByToken(token);
+}
+
+module.exports = { isValidAdminToken, getAdminByToken };

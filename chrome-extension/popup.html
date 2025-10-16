@@ -23,6 +23,16 @@
             管理者金鑰
             <input type="password" id="admin-token" placeholder="請輸入管理者金鑰">
         </label>
+        <label>
+            預設頻道 (可選，輸入 login 名稱)
+            <input type="text" id="channel-id" placeholder="channel login or id (e.g. someStreamer)">
+        </label>
+        <div class="channel-actions">
+            <input type="text" id="channel-login" placeholder="輸入 channel login（例如：someStreamer）" />
+            <button id="resolve-channel" class="secondary">解析並取得 channel_id</button>
+            <button id="add-channel" class="secondary">解析後加入此 admin 可控頻道</button>
+            <div id="resolve-result" class="card-help"></div>
+        </div>
         <div class="actions">
             <button id="save-settings">儲存金鑰</button>
             <button id="clear-settings" class="danger secondary">清除</button>

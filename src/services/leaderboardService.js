@@ -1,21 +1,34 @@
 // src/services/leaderboardService.js
-const { db } = require('../services/store');
+const { db, ensureChannelBucket, LEGACY_BUCKET } = require('../services/store');
 
 // 更新排行榜
-function updateLeaderboard(userKey, { win, points }) {
-    // 取得或初始化使用者資料
-    const cur = db.leaderboard.get(userKey) || { 
+function updateLeaderboard(userKey, { win, points }, channelId) {
+    const bucket = ensureChannelBucket(channelId || LEGACY_BUCKET);
+    const cur = bucket.leaderboard.get(userKey) || {
         total_points: 0,
         win_count: 0,
         total_votes: 0,
         last_active: 0
     };
-    // 更新資料
     cur.total_points += points || 0;
     cur.total_votes += 1;
     if (win) cur.win_count += 1;
     cur.last_active = Date.now();
-    db.leaderboard.set(userKey, cur);
+    bucket.leaderboard.set(userKey, cur);
+}
+
+// 直接調整使用者分數/勝場（可以為負值），不改變 total_votes
+function adjustUser(userKey, { pointsDelta = 0, winDelta = 0 }, channelId) {
+    const bucket = ensureChannelBucket(channelId || LEGACY_BUCKET);
+    const cur = bucket.leaderboard.get(userKey) || {
+        total_points: 0,
+        win_count: 0,
+        total_votes: 0,
+        last_active: 0
+    };
+    cur.total_points = (cur.total_points || 0) + (pointsDelta || 0);
+    cur.win_count = (cur.win_count || 0) + (winDelta || 0);
+    bucket.leaderboard.set(userKey, cur);
 }
 
 function extractDisplayName(userKey) {
@@ -27,10 +40,10 @@ function extractDisplayName(userKey) {
     return userKey;
 }
 
-function getTop(n = 10) {
-    // 將排行榜轉為陣列並排序，並加上 displayName
+function getTop(n = 10, channelId) {
+    const bucket = ensureChannelBucket(channelId || LEGACY_BUCKET);
     const arr = [];
-    for (const [userKey, row] of db.leaderboard.entries()) {
+    for (const [userKey, row] of bucket.leaderboard.entries()) {
         const win_rate = row.total_votes > 0 ? (row.win_count / row.total_votes) : 0;
         arr.push({ user: userKey, displayName: extractDisplayName(userKey), ...row, win_rate });
     }
@@ -38,4 +51,19 @@ function getTop(n = 10) {
     return arr.slice(0, n);
 }
 
-module.exports = { updateLeaderboard, getTop, extractDisplayName };
+// 透過 history 重建排行榜
+function rebuildLeaderboard(history, channelId) {
+    const bucket = ensureChannelBucket(channelId || LEGACY_BUCKET);
+    bucket.leaderboard = new Map();
+    // history 預期為從最舊到最新的陣列
+    for (const entry of history) {
+        const reward = entry.reward_points || 1;
+        const votes = entry.votes || {};
+        for (const [userKey, optionId] of Object.entries(votes)) {
+            const win = optionId === entry.correct_option_id;
+            updateLeaderboard(userKey, { win, points: win ? reward : 0 }, channelId);
+        }
+    }
+}
+
+module.exports = { updateLeaderboard, getTop, extractDisplayName, rebuildLeaderboard, adjustUser };

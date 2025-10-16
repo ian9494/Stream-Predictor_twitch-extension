@@ -1,5 +1,5 @@
 // src/services/marketService.js
-const { db } = require('../services/store');
+const { db, ensureChannelBucket, createLeaderboardBackup, restoreLeaderboardBackup, LEGACY_BUCKET } = require('../services/store');
 const { updateLeaderboard, getTop } = require('./leaderboardService');
 const { getTwitchUserName } = require('../utils/twitchUserCache');
 
@@ -29,12 +29,13 @@ function normalizeRewardPoints(rawReward) {
     return reward;
 }
 
-function openMarket({ id, title, options, reward_points }) {
+function openMarket({ id, title, options, reward_points, channelId }) {
     if (!id || !title) {
         throw new Error('MARKET_PAYLOAD_INVALID');
     }
-    if (db.markets.has(id)) {
-        const existing = db.markets.get(id);
+    const bucket = ensureChannelBucket(channelId || LEGACY_BUCKET);
+    if (bucket.markets.has(id)) {
+        const existing = bucket.markets.get(id);
         if (existing.status !== 'settled') {
             throw new Error('MARKET_ALREADY_OPEN');
         }
@@ -52,14 +53,15 @@ function openMarket({ id, title, options, reward_points }) {
         reward_points: normalizeRewardPoints(reward_points),
     };
 
-    db.markets.set(id, market);
-    if (!db.votesByMarket.has(id)) db.votesByMarket.set(id, new Map());
+    bucket.markets.set(id, market);
+    if (!bucket.votesByMarket.has(id)) bucket.votesByMarket.set(id, new Map());
 
     return market;
 }
 
-function closeMarket(marketId) {
-    const market = db.markets.get(marketId);
+function closeMarket(marketId, channelId) {
+    const bucket = ensureChannelBucket(channelId || LEGACY_BUCKET);
+    const market = bucket.markets.get(marketId);
     if (!market) {
         return { ok: false, code: 'MARKET_NOT_FOUND' };
     }
@@ -70,8 +72,9 @@ function closeMarket(marketId) {
     return { ok: true, market };
 }
 
-function tallyCounts(marketId, options) {
-    const votes = db.votesByMarket.get(marketId) || new Map();
+function tallyCounts(marketId, options, channelId) {
+    const bucket = ensureChannelBucket(channelId || LEGACY_BUCKET);
+    const votes = bucket.votesByMarket.get(marketId) || new Map();
     const counts = {};
     for (const option of options) counts[option.id] = 0;
     for (const [, option_id] of votes.entries()) {
@@ -80,8 +83,15 @@ function tallyCounts(marketId, options) {
     return counts;
 }
 
-function settleMarket({ marketId, correct_option_id }) {
-    const market = db.markets.get(marketId);
+function settleMarket({ marketId, correct_option_id, channelId }) {
+    // 在正式結算前備份 leaderboard，方便回朔
+    try {
+        createLeaderboardBackup(channelId);
+    } catch (e) {
+        console.error('createLeaderboardBackup failed', e);
+    }
+    const bucket = ensureChannelBucket(channelId || LEGACY_BUCKET);
+    const market = bucket.markets.get(marketId);
     if (!market) {
         return { ok: false, code: 'MARKET_NOT_FOUND' };
     }
@@ -96,47 +106,51 @@ function settleMarket({ marketId, correct_option_id }) {
     market.settled_at = Date.now();
     market.correct_option_id = correct_option_id;
 
-    const votes = db.votesByMarket.get(marketId) || new Map();
+    const votes = bucket.votesByMarket.get(marketId) || new Map();
     const rewardPoints = normalizeRewardPoints(market.reward_points);
     for (const [userKey, option_id] of votes.entries()) {
         const win = option_id === correct_option_id;
-        updateLeaderboard(userKey, { win, points: win ? rewardPoints : 0 });
+        updateLeaderboard(userKey, { win, points: win ? rewardPoints : 0 }, channelId);
     }
 
-    db.history.push({
+    bucket.history.push({
         id: market.id,
         title: market.title,
         correct_option_id,
         settled_at: market.settled_at,
-        counts: tallyCounts(market.id, market.options),
+        counts: tallyCounts(market.id, market.options, channelId),
         reward_points: rewardPoints,
+        // 儲存每位使用者的選擇，方便日後回朔重建或修正
+        votes: Object.fromEntries(votes.entries()),
+        channel_id: channelId || LEGACY_BUCKET,
     });
 
-    db.markets.delete(marketId);
-    db.votesByMarket.delete(marketId);
+    bucket.markets.delete(marketId);
+    bucket.votesByMarket.delete(marketId);
 
     return { ok: true, market };
 }
 
-async function getSnapshot(userKey) {
-    const markets = Array.from(db.markets.values())
+async function getSnapshot(userKey, channelId) {
+    const bucket = ensureChannelBucket(channelId || LEGACY_BUCKET);
+    const markets = Array.from(bucket.markets.values())
         .map(market => ({
             ...market,
-            counts: tallyCounts(market.id, market.options),
+            counts: tallyCounts(market.id, market.options, channelId),
         }))
         .sort((a, b) => (a.started_at || 0) - (b.started_at || 0));
 
-    const history = db.history.slice(-10);
+    const history = bucket.history.slice(-10);
 
     let selfData = { selfPoints: 0, selfRank: null, selfVotes: 0, selfWin: 0, displayName: '' };
     if (userKey) {
-        const row = db.leaderboard.get(userKey);
+        const row = bucket.leaderboard.get(userKey);
         if (row) {
             selfData.selfPoints = row.total_points || 0;
             selfData.selfVotes = row.total_votes || 0;
             selfData.selfWin = row.win_count || 0;
         }
-        const all = Array.from(db.leaderboard.entries())
+        const all = Array.from(bucket.leaderboard.entries())
             .sort((a, b) => (b[1].total_points - a[1].total_points)
                 || ((b[1].win_count / ((b[1].total_votes || 1))) - (a[1].win_count / ((a[1].total_votes || 1)))));
         const idx = all.findIndex(([key]) => key === userKey);
@@ -146,7 +160,7 @@ async function getSnapshot(userKey) {
         );
     }
 
-    const leaderboard = getTop(10);
+    const leaderboard = getTop(10, channelId);
 
     return {
         market: markets[0] || null, // legacy single-market clients
@@ -158,11 +172,12 @@ async function getSnapshot(userKey) {
     };
 }
 
-function vote({ userKey, option_id, marketId }) {
+function vote({ userKey, option_id, marketId, channelId }) {
     if (!marketId) {
         return { ok: false, code: 'MARKET_ID_REQUIRED' };
     }
-    const market = db.markets.get(marketId);
+    const bucket = ensureChannelBucket(channelId || LEGACY_BUCKET);
+    const market = bucket.markets.get(marketId);
     if (!market) {
         return { ok: false, code: 'NO_ACTIVE_MARKET' };
     }
@@ -172,10 +187,9 @@ function vote({ userKey, option_id, marketId }) {
     if (!market.options.some(option => option.id === option_id)) {
         return { ok: false, code: 'INVALID_OPTION' };
     }
-
-    const votes = db.votesByMarket.get(marketId) || new Map();
+    const votes = bucket.votesByMarket.get(marketId) || new Map();
     votes.set(userKey, option_id);
-    db.votesByMarket.set(marketId, votes);
+    bucket.votesByMarket.set(marketId, votes);
 
     return { ok: true };
 }
@@ -186,4 +200,7 @@ module.exports = {
     settleMarket,
     getSnapshot,
     vote,
+    // 備份與還原 (提供管理接口使用)
+    createLeaderboardBackup,
+    restoreLeaderboardBackup,
 };

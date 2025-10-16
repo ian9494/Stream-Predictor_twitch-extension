@@ -2,10 +2,8 @@ const DEFAULT_BASE_URL = 'https://twitch-extension-api.noctration.dev/';
 const STORAGE_KEYS = ['adminToken'];
 const FALLBACK_STORAGE_KEY = 'shotcall-market-control-settings';
 
-const ADMIN_TOKENS = [
-    { username: 'ian9494', token: 'fee8b42603da' },
-    { username: 'kant0211', token: 'a0d95e83517d' },
-];
+// ADMIN_TOKENS are now managed server-side in src/admin-tokens.json.
+// popup will query /admin/whoami to retrieve admin metadata for the provided token.
 
 const elements = {
     adminUsername: document.getElementById('admin-username'),
@@ -13,6 +11,11 @@ const elements = {
     status: document.getElementById('status'),
     statusText: document.getElementById('status-text'),
     adminToken: document.getElementById('admin-token'),
+    channelId: document.getElementById('channel-id'),
+    channelLogin: document.getElementById('channel-login'),
+    resolveChannelBtn: document.getElementById('resolve-channel'),
+    addChannelBtn: document.getElementById('add-channel'),
+    resolveResult: document.getElementById('resolve-result'),
     saveSettings: document.getElementById('save-settings'),
     clearSettings: document.getElementById('clear-settings'),
     optionsContainer: document.getElementById('options-container'),
@@ -95,9 +98,8 @@ const state = {
 };
 
 function getUsernameByToken(token) {
-    if (!token) return '';
-    const found = ADMIN_TOKENS.find((entry) => entry.token === token.trim());
-    return found ? found.username : '權限不足';
+    // username is populated from /admin/whoami; keep fallback
+    return '';
 }
 
 function updateAdminUsername() {
@@ -272,6 +274,25 @@ async function loadSettings() {
         state.adminToken = saved.adminToken;
         if (elements.adminToken) elements.adminToken.value = saved.adminToken;
     }
+    // try to fetch whoami if admin token present
+    if (state.adminToken) {
+        try {
+            const who = await apiFetch('admin/whoami');
+            if (who && who.admin) {
+                const allowed = who.admin.allowedChannels || [];
+                state.allowedChannels = allowed;
+                // if only one channel allowed, auto select it
+                if (allowed.length === 1) {
+                    state.channelId = allowed[0];
+                    if (elements.channelId) elements.channelId.value = state.channelId;
+                }
+                updateAdminUsername();
+            }
+        } catch (e) {
+            // ignore whoami failure, UI will still work with admin token
+            console.warn('whoami failed', e.message);
+        }
+    }
     updateAdminUsername();
 }
 
@@ -430,7 +451,7 @@ async function handleOpenMarket() {
     try {
         await apiFetch('admin/open', {
             method: 'POST',
-            body: { id, title, options, reward_points: rewardPoints },
+            body: { id, title, options, reward_points: rewardPoints, channel_id: state.channelId || elements.channelId?.value },
         });
         setStatus('預測建立成功。', 'success');
         elements.openId.value = '';
@@ -455,7 +476,7 @@ async function handleCloseMarket() {
     try {
         await apiFetch('admin/close', {
             method: 'POST',
-            body: { market_id: marketId },
+            body: { market_id: marketId, channel_id: state.channelId || elements.channelId?.value },
         });
         setStatus('預測已關閉，將停止接受玩家預測。', 'success');
         await refreshSnapshot(false);
@@ -493,7 +514,7 @@ async function handleSettleMarket() {
     try {
         await apiFetch('admin/settle', {
             method: 'POST',
-            body: { market_id: marketId, correct_option_id: optionId },
+            body: { market_id: marketId, correct_option_id: optionId, channel_id: state.channelId || elements.channelId?.value },
         });
         setStatus('預測已成功結算。', 'success');
         await refreshSnapshot(false);
@@ -538,6 +559,56 @@ function attachEventListeners() {
     elements.refresh?.addEventListener('click', (event) => {
         event.preventDefault();
         refreshSnapshot();
+    });
+
+    elements.resolveChannelBtn?.addEventListener('click', async (event) => {
+        event.preventDefault();
+        const login = elements.channelLogin?.value?.trim();
+        if (!login) {
+            setStatus('請輸入 channel login', 'error');
+            return;
+        }
+        setLoading(elements.resolveChannelBtn, true, '解析中...');
+        try {
+            const res = await apiFetch(`resolve-channel?login=${encodeURIComponent(login)}`);
+            if (res?.channel_id) {
+                elements.resolveResult.textContent = `channel_id: ${res.channel_id} (${res.display_name || res.login})`;
+                // 填入 channel-id 欄位
+                elements.channelId.value = res.channel_id;
+                state.channelId = res.channel_id;
+                setStatus('解析成功', 'success');
+            } else {
+                elements.resolveResult.textContent = '解析失敗';
+                setStatus('解析失敗', 'error');
+            }
+        } catch (err) {
+            elements.resolveResult.textContent = `解析錯誤: ${err.message}`;
+            setStatus(`解析錯誤: ${err.message}`, 'error');
+        } finally {
+            setLoading(elements.resolveChannelBtn, false);
+        }
+    });
+
+    elements.addChannelBtn?.addEventListener('click', async (event) => {
+        event.preventDefault();
+        const channelIdToAdd = elements.channelId?.value?.trim() || state.channelId;
+        if (!channelIdToAdd) {
+            setStatus('請先解析或輸入 channel id', 'error');
+            return;
+        }
+        setLoading(elements.addChannelBtn, true, '加入中...');
+        try {
+            const res = await apiFetch('add-channel', { method: 'POST', body: { channel_id: channelIdToAdd } });
+            if (res?.ok) {
+                setStatus('頻道已加入 admin 可控清單', 'success');
+            } else {
+                setStatus('加入頻道失敗', 'error');
+            }
+        } catch (err) {
+            setStatus(`加入頻道錯誤: ${err.message}`, 'error');
+        } finally {
+            setLoading(elements.addChannelBtn, false);
+        }
     });
 
     elements.settleOption?.addEventListener('change', () => {

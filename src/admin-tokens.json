@@ -1,10 +1,12 @@
 [
   {
     "username": "ian9494",
-    "token": "fee8b42603da"
+    "token": "fee8b42603da",
+    "allowedChannels": ["my_channel_1"]
   },
   {
     "username": "kant0211",
-    "token": "a0d95e83517d"
+    "token": "a0d95e83517d",
+    "allowedChannels": ["*"]
   }
 ]
