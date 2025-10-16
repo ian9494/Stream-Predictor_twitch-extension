@@ -1,14 +1,14 @@
 <!DOCTYPE html>
-<html lang="zh-Hant">
+<html lang="en">
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>實況預測管理器</title>
+<title>實況預測控制台</title>
     <link rel="stylesheet" href="popup.css">
 </head>
 <body>
     <header>
-        <h1>實況預測管理器</h1>
+        <h1>實況預測控制台</h1>
         <button id="refresh" class="secondary">重新整理</button>
     </header>
 
@@ -16,34 +16,33 @@
         <span id="status-text"></span>
     </section>
 
-    <section class="card">
-        <h2>管理員登入</h2>
-        <!-- <div id="admin-username" style="position: absolute; top: 12px; right: 16px; color: #888; font-size: 0.95em;"></div> -->
+    <section class="card card_relative">
+        <h2>管理者驗證</h2>
         <div id="admin-username" class="admin-username"></div>
         <label>
-            管理員密鑰
-            <input type="password" id="admin-token" placeholder="Required for admin endpoints">
+            管理者金鑰
+            <input type="password" id="admin-token" placeholder="請輸入管理者金鑰">
         </label>
         <div class="actions">
-            <button id="save-settings">儲存密鑰</button>
+            <button id="save-settings">儲存金鑰</button>
             <button id="clear-settings" class="danger secondary">清除</button>
         </div>
     </section>
 
     <section class="card">
-        <h2>當前預測</h2>
-        <div id="market-summary" class="empty">尚未加載任何預測。</div>
+        <h2>目前預測</h2>
+        <div id="market-summary" class="empty">目前沒有進行中的預測，請先建立新的預測。</div>
     </section>
 
     <section class="card">
         <h2>開啟預測</h2>
         <label>
             預測 ID
-            <input type="text" id="open-id" placeholder="e.g. match-2025-10-15">
+            <input type="text" id="open-id" placeholder="例：match-2025-10-15">
         </label>
         <label>
             標題
-            <input type="text" id="open-title" placeholder="Who wins map 3?">
+            <input type="text" id="open-title" placeholder="範例：第三場誰會勝利？">
         </label>
         <div id="options-container"></div>
         <div class="actions">
@@ -54,21 +53,29 @@
 
     <section class="card">
         <h2>關閉預測</h2>
-        <p class="card-help">在遊戲進行時禁止新的投票。</p>
+        <label>
+            選擇預測
+            <select id="close-market-select"></select>
+        </label>
+        <p class="card-help">關閉預測後會立即停止接收新的玩家預測。</p>
         <button id="close-market" class="primary">關閉預測</button>
     </section>
 
     <section class="card">
         <h2>結算預測</h2>
         <label>
-            勝出選項
+            選擇預測
+            <select id="settle-market-select"></select>
+        </label>
+        <label>
+            獲勝選項
             <select id="settle-option"></select>
         </label>
         <label id="settle-custom-wrapper" class="hidden">
             自訂選項 ID
-            <input type="text" id="settle-custom" placeholder="輸入勝出選項 ID">
+            <input type="text" id="settle-custom" placeholder="請輸入獲勝選項 ID">
         </label>
-        <p class="card-help">選擇勝出的選項，結算後將立即分配獎金。</p>
+        <p class="card-help">結算預測後會立即記錄勝負並封存結果。</p>
         <button id="settle-market" class="primary danger">結算預測</button>
     </section>
 
@@ -80,9 +87,9 @@
             </label>
             <label>
                 標籤
-                <input type="text" class="option-label" placeholder="Team A">
+                <input type="text" class="option-label" placeholder="例：Team A">
             </label>
-            <button class="remove-option secondary danger" title="Remove option">✕</button>
+            <button class="remove-option secondary danger" title="移除選項">✕</button>
         </div>
     </template>
 

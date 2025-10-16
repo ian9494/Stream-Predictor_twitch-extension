@@ -1,42 +1,59 @@
 // src/routes/admin.js
 const express = require('express');
-const { openMarket, closeMarket, settleMarket, getMarketStatus } = require('../services/marketService');
-const { route } = require('./snapshot');
+const { openMarket, closeMarket, settleMarket } = require('../services/marketService');
+const { isValidAdminToken } = require('../utils/adminTokens');
 
 const router = express.Router();
 
-// 多管理員 token 驗證
-const { isValidAdminToken } = require('../utils/adminTokens');
 function requireAdmin(req, res, next) {
     const token = req.headers['x-admin-token'];
     if (!isValidAdminToken(token)) {
-        return res.status(403).json({ error: '存取權限不足, 無效的管理員代碼' });
+        return res.status(403).json({ error: 'Permission denied. Admin token is invalid.' });
     }
     next();
 }
 
-// 開啟市集 API
 router.post('/open', requireAdmin, (req, res) => {
     const { id, title, options } = req.body || {};
-    if (!id || !title || !options || !Array.isArray(options) || options.length < 2) {
-        return res.status(400).json({ error: 'id/title/options are required and options must be an array of at least 2 items' });
+    if (!id || !title || !Array.isArray(options) || options.length < 2) {
+        return res.status(400).json({ error: 'id/title/options are required and options must contain at least two entries.' });
     }
-
-    openMarket({ id, title, options });
-    res.json({ ok: true });
+    try {
+        const market = openMarket({ id, title, options });
+        res.json({ ok: true, market });
+    } catch (error) {
+        const map = {
+            MARKET_ALREADY_OPEN: 409,
+            OPTIONS_INVALID: 400,
+            MARKET_PAYLOAD_INVALID: 400,
+        };
+        const status = map[error.message] || 500;
+        res.status(status).json({ error: error.message });
+    }
 });
 
-// 關閉市集 API
 router.post('/close', requireAdmin, (req, res) => {
-    closeMarket();
-    res.json({ ok: true });
+    const { market_id } = req.body || {};
+    if (!market_id) {
+        return res.status(400).json({ error: 'market_id is required' });
+    }
+    const result = closeMarket(market_id);
+    if (!result.ok) {
+        return res.status(404).json({ error: result.code });
+    }
+    res.json({ ok: true, market: result.market });
 });
 
 router.post('/settle', requireAdmin, (req, res) => {
-    const { correct_option_id } = req.body || {};
-    if (!correct_option_id) return res.status(400).json({ error: 'correct_option_id is required' });
-    settleMarket(correct_option_id);
-    res.json({ ok: true });
+    const { market_id, correct_option_id } = req.body || {};
+    if (!market_id || !correct_option_id) {
+        return res.status(400).json({ error: 'market_id and correct_option_id are required' });
+    }
+    const result = settleMarket({ marketId: market_id, correct_option_id });
+    if (!result.ok) {
+        return res.status(404).json({ error: result.code });
+    }
+    res.json({ ok: true, market: result.market });
 });
 
 module.exports = router;

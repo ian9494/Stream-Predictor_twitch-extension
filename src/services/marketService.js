@@ -1,86 +1,119 @@
 // src/services/marketService.js
 const { db } = require('../services/store');
-const { updateLeaderboard, getTop, extractDisplayName } = require('./leaderboardService');
+const { updateLeaderboard, getTop } = require('./leaderboardService');
 const { getTwitchUserName } = require('../utils/twitchUserCache');
 
-// 開啟新市集
+function ensureOptionList(rawOptions) {
+    if (!Array.isArray(rawOptions) || rawOptions.length < 2) {
+        throw new Error('OPTIONS_INVALID');
+    }
+    return rawOptions.map(o => {
+        if (!o || !o.id || !o.label) {
+            throw new Error('OPTIONS_INVALID');
+        }
+        return {
+            id: o.id,
+            label: o.label,
+        };
+    });
+}
+
 function openMarket({ id, title, options }) {
-    db.currentMarkets = {
+    if (!id || !title) {
+        throw new Error('MARKET_PAYLOAD_INVALID');
+    }
+    if (db.markets.has(id)) {
+        const existing = db.markets.get(id);
+        if (existing.status !== 'settled') {
+            throw new Error('MARKET_ALREADY_OPEN');
+        }
+    }
+
+    const market = {
         id,
         title,
-        options: options.map(o => ({ id: o.id, label: o.label })),
+        options: ensureOptionList(options),
         status: 'open',
         started_at: Date.now(),
         closed_at: null,
         settled_at: null,
-        correct_option_id: null
+        correct_option_id: null,
     };
+
+    db.markets.set(id, market);
     if (!db.votesByMarket.has(id)) db.votesByMarket.set(id, new Map());
+
+    return market;
 }
 
-// 關閉市集（停止接受投票）
-function closeMarket() {
-    if (db.currentMarkets && db.currentMarkets.status === 'open') {
-        db.currentMarkets.status = 'closed';
-        db.currentMarkets.closed_at = Date.now();
+function closeMarket(marketId) {
+    const market = db.markets.get(marketId);
+    if (!market) {
+        return { ok: false, code: 'MARKET_NOT_FOUND' };
     }
-}
-
-// 封鎖市集（結算並公布結果）
-function settleMarket(correct_option_id) {
-    if (!db.currentMarkets) return;
-    const market = db.currentMarkets;
-    if (market.status === 'open') closeMarket();
-    market.settled_at = Date.now();
-    market.status = 'settled';
-    market.correct_option_id = correct_option_id;
-
-    // 計算得分並更新排行榜
-    const votes = db.votesByMarket.get(market.id) || new Map();
-    for (const [userKey, option_id] of votes.entries()) {
-        const win = option_id === correct_option_id;
-        updateLeaderboard(userKey, { win, points: win ? 1 : 0 });
+    if (market.status === 'open') {
+        market.status = 'closed';
+        market.closed_at = Date.now();
     }
-
-    // 推入歷史市集
-    db.history.push({
-        id: market.id,
-        title: market.title,
-        correct_option_id,
-        settled_at: market.settled_at,
-        counts: tallyCounts(market.id, market.options)
-    });
-
-    // 結束後清空當前市集
-    db.currentMarkets = null;
+    return { ok: true, market };
 }
 
-// 計算各選項票數
 function tallyCounts(marketId, options) {
     const votes = db.votesByMarket.get(marketId) || new Map();
     const counts = {};
     for (const option of options) counts[option.id] = 0;
     for (const [, option_id] of votes.entries()) {
-        if (counts[option_id] !== undefined) counts[option_id]++;
+        if (counts[option_id] !== undefined) counts[option_id] += 1;
     }
     return counts;
 }
 
-// 取得當前市集快照
+function settleMarket({ marketId, correct_option_id }) {
+    const market = db.markets.get(marketId);
+    if (!market) {
+        return { ok: false, code: 'MARKET_NOT_FOUND' };
+    }
+    if (market.status === 'open') {
+        closeMarket(marketId);
+    }
+    if (market.status === 'settled') {
+        return { ok: true, market, alreadySettled: true };
+    }
+
+    market.status = 'settled';
+    market.settled_at = Date.now();
+    market.correct_option_id = correct_option_id;
+
+    const votes = db.votesByMarket.get(marketId) || new Map();
+    for (const [userKey, option_id] of votes.entries()) {
+        const win = option_id === correct_option_id;
+        updateLeaderboard(userKey, { win, points: win ? 1 : 0 });
+    }
+
+    db.history.push({
+        id: market.id,
+        title: market.title,
+        correct_option_id,
+        settled_at: market.settled_at,
+        counts: tallyCounts(market.id, market.options),
+    });
+
+    db.markets.delete(marketId);
+    db.votesByMarket.delete(marketId);
+
+    return { ok: true, market };
+}
 
 async function getSnapshot(userKey) {
-    console.log('getSnapshot userKey:', userKey);
-    const market = db.currentMarkets
-        ? {
-            ...db.currentMarkets,
-            counts: tallyCounts(db.currentMarkets.id, db.currentMarkets.options)
-        }
-        : null;
+    const markets = Array.from(db.markets.values())
+        .map(market => ({
+            ...market,
+            counts: tallyCounts(market.id, market.options),
+        }))
+        .sort((a, b) => (a.started_at || 0) - (b.started_at || 0));
 
-    // 只取最近 10 筆歷史
     const history = db.history.slice(-10);
 
-    // 個人成績
     let selfData = { selfPoints: 0, selfRank: null, selfVotes: 0, selfWin: 0, displayName: '' };
     if (userKey) {
         const row = db.leaderboard.get(userKey);
@@ -89,38 +122,45 @@ async function getSnapshot(userKey) {
             selfData.selfVotes = row.total_votes || 0;
             selfData.selfWin = row.win_count || 0;
         }
-        // 計算排名（全排行榜）
         const all = Array.from(db.leaderboard.entries())
-            .sort((a, b) => (b[1].total_points - a[1].total_points) || ((b[1].win_count / (b[1].total_votes||1)) - (a[1].win_count / (a[1].total_votes||1))));
-        const idx = all.findIndex(([k]) => k === userKey);
+            .sort((a, b) => (b[1].total_points - a[1].total_points)
+                || ((b[1].win_count / ((b[1].total_votes || 1))) - (a[1].win_count / ((a[1].total_votes || 1)))));
+        const idx = all.findIndex(([key]) => key === userKey);
         if (idx !== -1) selfData.selfRank = idx + 1;
-        // 取得 Twitch displayName
-        selfData.displayName = await getTwitchUserName(userKey.startsWith('user:') ? userKey.slice(5) : '');
-        console.log('selfData.displayName:', selfData.displayName); // debug log
+        selfData.displayName = await getTwitchUserName(
+            userKey.startsWith('user:') ? userKey.slice(5) : ''
+        );
     }
 
     const leaderboard = getTop(10);
 
     return {
-        market,
+        market: markets[0] || null, // legacy single-market clients
+        markets,
         history,
         leaderboard,
         selfData,
-        server_ts: Date.now()
+        server_ts: Date.now(),
     };
 }
 
-// 使用者投票
 function vote({ userKey, option_id, marketId }) {
-    if (!db.currentMarkets || db.currentMarkets.id !== marketId) {
+    if (!marketId) {
+        return { ok: false, code: 'MARKET_ID_REQUIRED' };
+    }
+    const market = db.markets.get(marketId);
+    if (!market) {
         return { ok: false, code: 'NO_ACTIVE_MARKET' };
     }
-    if (db.currentMarkets.status !== 'open') {
+    if (market.status !== 'open') {
         return { ok: false, code: 'MARKET_CLOSED' };
+    }
+    if (!market.options.some(option => option.id === option_id)) {
+        return { ok: false, code: 'INVALID_OPTION' };
     }
 
     const votes = db.votesByMarket.get(marketId) || new Map();
-    votes.set(userKey, option_id); // 一人一票，重複投票會覆蓋
+    votes.set(userKey, option_id);
     db.votesByMarket.set(marketId, votes);
 
     return { ok: true };
@@ -131,5 +171,5 @@ module.exports = {
     closeMarket,
     settleMarket,
     getSnapshot,
-    vote
+    vote,
 };

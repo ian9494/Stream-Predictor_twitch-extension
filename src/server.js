@@ -13,7 +13,7 @@ const verifyExtensionJwt = require('./middleware/verifyExtensionJwt');
 const snapshotRouter = require('./routes/snapshot');
 const voteRouter = require('./routes/vote');
 const adminRouter = require('./routes/admin');
-const { openMarker, openMarket } = require('./services/marketService');
+const { openMarket } = require('./services/marketService');
 
 
 // 初始化 Express 應用

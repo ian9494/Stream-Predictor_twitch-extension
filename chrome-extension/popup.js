@@ -1,16 +1,17 @@
-// API 伺服器的固定 base URL
 const DEFAULT_BASE_URL = 'https://twitch-extension-api.noctration.dev/';
-// 只儲存 adminToken
 const STORAGE_KEYS = ['adminToken'];
 const FALLBACK_STORAGE_KEY = 'shotcall-market-control-settings';
 
-// 快速取得所有會用到的 DOM 元素
+const ADMIN_TOKENS = [
+    { username: 'ian9494', token: 'fee8b42603da' },
+    { username: 'kant0211', token: 'a0d95e83517d' },
+];
+
 const elements = {
     adminUsername: document.getElementById('admin-username'),
     refresh: document.getElementById('refresh'),
     status: document.getElementById('status'),
     statusText: document.getElementById('status-text'),
-    // apiBase: document.getElementById('api-base'),
     adminToken: document.getElementById('admin-token'),
     saveSettings: document.getElementById('save-settings'),
     clearSettings: document.getElementById('clear-settings'),
@@ -20,37 +21,22 @@ const elements = {
     openId: document.getElementById('open-id'),
     openTitle: document.getElementById('open-title'),
     closeMarket: document.getElementById('close-market'),
+    closeMarketSelect: document.getElementById('close-market-select'),
     settleMarket: document.getElementById('settle-market'),
+    settleMarketSelect: document.getElementById('settle-market-select'),
     settleOption: document.getElementById('settle-option'),
     settleCustomWrapper: document.getElementById('settle-custom-wrapper'),
     settleCustom: document.getElementById('settle-custom'),
     marketSummary: document.getElementById('market-summary'),
     optionTemplate: document.getElementById('option-template'),
-    adminUsername: document.getElementById('admin-username')
-    };
+};
 
-// 內建管理員 token 對應表（與後端 admin-tokens.json 保持同步）
-const ADMIN_TOKENS = [
-    { "username": "ian9494", "token": "fee8b42603da" },
-    { "username": "kant0211", "token": "a0d95e83517d" }
-];
-
-// 根據 token 找 username
-function getUsernameByToken(token) {
-    if (!token) return '';
-    const found = ADMIN_TOKENS.find(u => u.token === token.trim());
-    return found ? found.username : 'Access Denied';
-}
-
-// 儲存與取得設定（優先用 chrome.storage，同步到 Google 帳號；否則用 localStorage）
 const storage = (() => {
     if (typeof chrome !== 'undefined' && chrome.storage?.sync) {
         return {
             async get(keys) {
                 return new Promise((resolve) => {
-                    chrome.storage.sync.get(keys, (items) => {
-                        resolve(items ?? {});
-                    });
+                    chrome.storage.sync.get(keys, (items) => resolve(items ?? {}));
                 });
             },
             async set(data) {
@@ -70,7 +56,7 @@ const storage = (() => {
                         else resolve();
                     });
                 });
-            }
+            },
         };
     }
 
@@ -97,18 +83,28 @@ const storage = (() => {
                 delete data[key];
             });
             localStorage.setItem(FALLBACK_STORAGE_KEY, JSON.stringify(data));
-        }
+        },
     };
 })();
 
-// 前端狀態（目前 baseUrl、adminToken、快照資料）
 const state = {
     baseUrl: DEFAULT_BASE_URL,
     adminToken: '',
-    snapshot: null
+    snapshot: null,
 };
 
-// 顯示狀態訊息（info/success/error）
+function getUsernameByToken(token) {
+    if (!token) return '';
+    const found = ADMIN_TOKENS.find((entry) => entry.token === token.trim());
+    return found ? found.username : '權限不足';
+}
+
+function updateAdminUsername() {
+    if (!elements.adminUsername) return;
+    const username = getUsernameByToken(state.adminToken);
+    elements.adminUsername.textContent = username ? `以 ${username} 身分登入` : '';
+}
+
 function setStatus(message, type = 'info') {
     if (!elements.status) return;
     elements.status.classList.remove('hidden', 'success', 'error', 'info');
@@ -117,194 +113,283 @@ function setStatus(message, type = 'info') {
     elements.statusText.textContent = message;
 }
 
-// 清除狀態訊息
 function clearStatus() {
     if (!elements.status) return;
     elements.status.classList.add('hidden');
     elements.statusText.textContent = '';
 }
 
-// 按鈕進入 loading 狀態，避免重複點擊
-function setLoading(button, loading, label = 'Working…') {
+function setLoading(button, loading, label) {
     if (!button) return;
     if (loading) {
         if (!button.dataset.originalText) {
             button.dataset.originalText = button.textContent;
         }
-        button.textContent = label;
         button.disabled = true;
+        if (label) button.textContent = label;
     } else {
+        button.disabled = false;
         if (button.dataset.originalText) {
             button.textContent = button.dataset.originalText;
             delete button.dataset.originalText;
         }
-        button.disabled = false;
     }
 }
 
-// 載入儲存的 adminToken 設定
-async function loadSettings() {
-    try {
-        const data = await storage.get(STORAGE_KEYS);
-        const adminToken = (data.adminToken || '').trim();
-        state.baseUrl = DEFAULT_BASE_URL;
-        state.adminToken = adminToken;
-        elements.adminToken.value = adminToken;
-        // 顯示對應的 username
-        elements.adminUsername.textContent = getUsernameByToken(adminToken) ? `帳號：${getUsernameByToken(adminToken)}` : '';
-    } catch (error) {
-        console.error('Failed to load settings', error);
-        setStatus(`Failed to load saved settings: ${error.message ?? error}`, 'error');
-    }
-}
-
-// 儲存 adminToken 設定
-async function saveSettings() {
-    const adminToken = elements.adminToken.value.trim();
-    if (!adminToken) {
-        setStatus('Admin Token is required.', 'error');
-        return;
-    }
-    try {
-        await storage.set({ adminToken });
-        state.baseUrl = DEFAULT_BASE_URL;
-        state.adminToken = adminToken;
-        // 顯示對應的 username
-        elements.adminUsername.textContent = getUsernameByToken(adminToken) ? `帳號：${getUsernameByToken(adminToken)}` : '';
-        setStatus('Token saved.', 'success');
-        await refreshSnapshot(false);
-    } catch (error) {
-        setStatus(`Unable to save token: ${error.message ?? error}`, 'error');
-    }
-}
-
-// 清除 adminToken 設定
-async function clearSettings() {
-    try {
-        await storage.remove(STORAGE_KEYS);
-        state.baseUrl = DEFAULT_BASE_URL;
-        state.adminToken = '';
-        elements.adminToken.value = '';
-        elements.adminUsername.textContent = '';
-        setStatus('Token cleared.', 'success');
-    } catch (error) {
-        setStatus(`Unable to clear token: ${error.message ?? error}`, 'error');
-    }
-}
-
-// 新增一個選項輸入列（for 開盤）
-function addOptionRow(option = {}) {
-    const clone = elements.optionTemplate.content.firstElementChild.cloneNode(true);
-    const idInput = clone.querySelector('.option-id');
-    const labelInput = clone.querySelector('.option-label');
-    idInput.value = option.id ?? '';
-    labelInput.value = option.label ?? '';
-
-    const removeButton = clone.querySelector('.remove-option');
-    removeButton.addEventListener('click', (event) => {
-        event.preventDefault();
-        if (elements.optionsContainer.children.length <= 2) {
-            setStatus('At least two options are required.', 'error');
-            return;
-        }
-        clone.remove();
-        clearStatus();
-        updateRemoveButtons();
-    });
-
-    elements.optionsContainer.appendChild(clone);
-    updateRemoveButtons();
-}
-
-// 根據選項數量決定移除按鈕是否可用
-function updateRemoveButtons() {
-    const rows = [...elements.optionsContainer.querySelectorAll('.option-row')];
-    const shouldDisable = rows.length <= 2;
-    rows.forEach((row) => {
-        const btn = row.querySelector('.remove-option');
-        btn.disabled = shouldDisable;
-    });
-}
-
-// 收集所有選項欄位的值，並檢查格式
-function collectOptions() {
-    const rows = [...elements.optionsContainer.querySelectorAll('.option-row')];
-    const options = [];
-    const ids = new Set();
-
-    for (const row of rows) {
-        const id = row.querySelector('.option-id').value.trim();
-        const label = row.querySelector('.option-label').value.trim();
-        if (!id || !label) {
-            throw new Error('Each option needs both an ID and a label.');
-        }
-        if (ids.has(id)) {
-            throw new Error(`Duplicate option ID detected: ${id}`);
-        }
-        ids.add(id);
-        options.push({ id, label });
-    }
-
-    if (options.length < 2) {
-        throw new Error('Provide at least two options.');
-    }
-
-    return options;
-}
-
-// 驗證 adminToken 是否已輸入，並回傳設定
 function requireSettings() {
-    const adminToken = elements.adminToken.value.trim();
-    if (!adminToken) {
-        throw new Error('Set the Admin Token first.');
+    const token = state.adminToken?.trim();
+    if (!token) {
+        throw new Error('請先填寫並儲存管理者金鑰。');
     }
-    state.baseUrl = DEFAULT_BASE_URL;
-    state.adminToken = adminToken;
-    return { baseUrl: DEFAULT_BASE_URL, adminToken };
 }
 
-// 封裝 fetch，帶上 adminToken，與錯誤處理
-async function apiFetch(path, { method = 'GET', body, expectJson = true } = {}) {
-    const url = new URL(path, state.baseUrl);
+async function apiFetch(path, options = {}) {
+    requireSettings();
+    const {
+        method = 'GET',
+        body,
+        expectJson = true,
+    } = options;
+
     const headers = {
-        'Content-Type': 'application/json',
-        ...(state.adminToken ? { 'x-admin-token': state.adminToken } : {})
+        'x-admin-token': state.adminToken.trim(),
     };
 
-    const response = await fetch(url.toString(), {
+    let payload;
+    if (body !== undefined) {
+        headers['Content-Type'] = 'application/json';
+        payload = typeof body === 'string' ? body : JSON.stringify(body);
+    }
+
+    const response = await fetch(`${state.baseUrl.replace(/\/$/, '')}/${path}`, {
         method,
         headers,
-        body: body ? JSON.stringify(body) : undefined
+        body: payload,
     });
 
     if (!response.ok) {
-        let message = `HTTP ${response.status}`;
+        let detail = '';
         try {
-            const errorData = await response.json();
-            if (errorData?.error || errorData?.message) {
-                message = errorData.error || errorData.message;
-            }
-        } catch (e) {
-            // ignore
+            const err = await response.json();
+            detail = err?.error || err?.message || '';
+        } catch (error) {
+            detail = '';
         }
-        throw new Error(message);
+        const suffix = detail ? `: ${detail}` : '';
+        throw new Error(`HTTP ${response.status}${suffix}`);
     }
 
     if (!expectJson) return null;
+    return response.json();
+}
 
-    try {
-        return await response.json();
-    } catch (error) {
-        throw new Error('Server returned an unexpected response.');
+function addOptionRow(value = { id: '', label: '' }) {
+    if (!elements.optionTemplate || !elements.optionsContainer) return;
+    const fragment = elements.optionTemplate.content.cloneNode(true);
+    const row = fragment.querySelector('.option-row');
+    const idInput = row.querySelector('.option-id');
+    const labelInput = row.querySelector('.option-label');
+    const removeBtn = row.querySelector('.remove-option');
+
+    idInput.value = value.id || '';
+    labelInput.value = value.label || '';
+
+    removeBtn.addEventListener('click', (event) => {
+        event.preventDefault();
+        row.remove();
+        ensureOptionRows();
+    });
+
+    elements.optionsContainer.appendChild(fragment);
+}
+
+function ensureOptionRows() {
+    if (!elements.optionsContainer) return;
+    if (elements.optionsContainer.querySelectorAll('.option-row').length === 0) {
+        addOptionRow({ id: 'A', label: 'Team A' });
+        addOptionRow({ id: 'B', label: 'Team B' });
     }
 }
 
-// 處理「開啟市集」按鈕事件
+function collectOptions() {
+    if (!elements.optionsContainer) return [];
+    const rows = elements.optionsContainer.querySelectorAll('.option-row');
+    const options = [];
+    rows.forEach((row) => {
+        const idInput = row.querySelector('.option-id');
+        const labelInput = row.querySelector('.option-label');
+        const id = idInput.value.trim();
+        const label = labelInput.value.trim();
+        if (!id || !label) {
+            throw new Error('每個選項都需要填寫 ID 與標籤。');
+        }
+        options.push({ id, label });
+    });
+    if (options.length < 2) {
+        throw new Error('至少需要兩個選項。');
+    }
+    return options;
+}
+
+async function saveSettings() {
+    const token = elements.adminToken.value.trim();
+    if (!token) {
+        setStatus('管理者金鑰不可留白。', 'error');
+        return;
+    }
+    await storage.set({ adminToken: token });
+    state.adminToken = token;
+    updateAdminUsername();
+    setStatus('設定已儲存。', 'success');
+}
+
+async function clearSettings() {
+    await storage.remove(STORAGE_KEYS);
+    state.adminToken = '';
+    if (elements.adminToken) elements.adminToken.value = '';
+    updateAdminUsername();
+    setStatus('設定已清除。', 'success');
+}
+
+async function loadSettings() {
+    const saved = await storage.get(STORAGE_KEYS);
+    if (saved?.adminToken) {
+        state.adminToken = saved.adminToken;
+        if (elements.adminToken) elements.adminToken.value = saved.adminToken;
+    }
+    updateAdminUsername();
+}
+
+function buildMarketSummaryItem(market) {
+    const counts = market.counts || {};
+    const options = market.options || [];
+    const lines = options.map((opt) => {
+        const votes = counts[opt.id] || 0;
+        return `<div class="option-item"><span>${opt.id} · ${opt.label}</span><span>${votes} 票</span></div>`;
+    }).join('');
+    const startedAt = market.started_at ? new Date(market.started_at).toLocaleString() : '-';
+    return `
+        <div class="market-card">
+            <div><strong>${market.title}</strong></div>
+            <div class="card-help">預測 ID：${market.id}</div>
+            <div class="card-help">狀態：<span style="text-transform:uppercase;">${market.status}</span></div>
+            <div class="card-help">開始時間：${startedAt}</div>
+            <div class="options">${lines}</div>
+        </div>
+    `;
+}
+
+function renderSnapshot(snapshot) {
+    const container = elements.marketSummary;
+    if (!container) return;
+
+    const markets = Array.isArray(snapshot?.markets) && snapshot.markets.length
+        ? snapshot.markets
+        : (snapshot?.market ? [snapshot.market] : []);
+
+    if (!markets.length) {
+        container.classList.add('empty');
+        container.innerHTML = '目前沒有進行中的預測，請先建立新的預測。';
+        populateMarketSelectors([]);
+        return;
+    }
+
+    container.classList.remove('empty');
+    container.innerHTML = markets.map(buildMarketSummaryItem).join('');
+    populateMarketSelectors(markets);
+}
+
+function populateMarketSelectors(markets) {
+    const closable = markets.filter((market) => market.status === 'open');
+    const settleable = markets.filter((market) => market.status !== 'settled');
+
+    updateSelect(elements.closeMarketSelect, closable, '選擇要關閉的預測');
+    updateSelect(elements.settleMarketSelect, settleable, '選擇要結算的預測');
+
+    updateSettleOptions(elements.settleMarketSelect.value, settleable);
+}
+
+function updateSelect(select, markets, placeholder) {
+    if (!select) return;
+    const currentValue = select.value;
+    select.innerHTML = '';
+
+    const placeholderOption = document.createElement('option');
+    placeholderOption.value = '';
+    placeholderOption.textContent = placeholder;
+    select.appendChild(placeholderOption);
+
+    markets.forEach((market) => {
+        const option = document.createElement('option');
+        option.value = market.id;
+        option.textContent = `${market.id} · ${market.title}`;
+        select.appendChild(option);
+    });
+
+    if (markets.some((market) => market.id === currentValue)) {
+        select.value = currentValue;
+    }
+}
+
+function updateSettleOptions(marketId, marketsFromArg) {
+    if (!elements.settleOption) return;
+    const markets = marketsFromArg ?? (Array.isArray(state.snapshot?.markets) ? state.snapshot.markets : []);
+    const targetMarket = markets.find((market) => market.id === marketId);
+
+    elements.settleOption.innerHTML = '';
+
+    const placeholder = document.createElement('option');
+    placeholder.value = '';
+    placeholder.textContent = targetMarket ? '請選擇獲勝選項' : '沒有可用的選項';
+    elements.settleOption.appendChild(placeholder);
+
+    if (targetMarket) {
+        (targetMarket.options || []).forEach((opt) => {
+            const option = document.createElement('option');
+            option.value = opt.id;
+            option.textContent = `${opt.id} · ${opt.label}`;
+            elements.settleOption.appendChild(option);
+        });
+    }
+
+    const custom = document.createElement('option');
+    custom.value = '_custom';
+    custom.textContent = '手動輸入選項 ID';
+    elements.settleOption.appendChild(custom);
+
+    elements.settleCustom.value = '';
+    toggleCustomSettle(false);
+}
+
+function toggleCustomSettle(show) {
+    if (!elements.settleCustomWrapper) return;
+    if (show) {
+        elements.settleCustomWrapper.classList.remove('hidden');
+    } else {
+        elements.settleCustomWrapper.classList.add('hidden');
+        if (elements.settleCustom) elements.settleCustom.value = '';
+    }
+}
+
+async function refreshSnapshot(showStatus = true) {
+    try {
+        if (showStatus) setStatus('載入預測資料中…', 'info');
+        const snapshot = await apiFetch('snapshot');
+        state.snapshot = snapshot;
+        renderSnapshot(snapshot);
+        if (showStatus) setStatus('預測資料已更新。', 'success');
+    } catch (error) {
+        state.snapshot = null;
+        renderSnapshot(null);
+        setStatus(`無法載入預測資料：${error.message}`, 'error');
+    }
+}
+
 async function handleOpenMarket() {
     let options;
     try {
-        requireSettings();
         options = collectOptions();
+        requireSettings();
     } catch (error) {
         setStatus(error.message, 'error');
         return;
@@ -314,60 +399,61 @@ async function handleOpenMarket() {
     const title = elements.openTitle.value.trim();
 
     if (!id) {
-        setStatus('Market ID is required.', 'error');
+        setStatus('請輸入預測 ID。', 'error');
         return;
     }
     if (!title) {
-        setStatus('Market title is required.', 'error');
+        setStatus('請輸入預測標題。', 'error');
         return;
     }
 
-    setStatus('Opening market...', 'info');
-    setLoading(elements.openMarket, true, 'Opening…');
+    setStatus('開啟預測中…', 'info');
+    setLoading(elements.openMarket, true, '開啟中…');
 
     try {
         await apiFetch('admin/open', {
             method: 'POST',
-            body: { id, title, options }
+            body: { id, title, options },
         });
-        setStatus('Market opened successfully.', 'success');
+        setStatus('預測建立成功。', 'success');
+        elements.openId.value = '';
+        elements.openTitle.value = '';
         await refreshSnapshot(false);
     } catch (error) {
-        setStatus(`Failed to open market: ${error.message}`, 'error');
+        setStatus(`預測建立失敗：${error.message}`, 'error');
     } finally {
         setLoading(elements.openMarket, false);
     }
 }
 
-// 處理「關閉市集」按鈕事件
 async function handleCloseMarket() {
-    try {
-        requireSettings();
-    } catch (error) {
-        setStatus(error.message, 'error');
+    const marketId = elements.closeMarketSelect?.value;
+    if (!marketId) {
+        setStatus('請選擇要關閉的預測。', 'error');
         return;
     }
 
-    setStatus('Closing market...', 'info');
-    setLoading(elements.closeMarket, true, 'Closing…');
+    setStatus('關閉預測中…', 'info');
+    setLoading(elements.closeMarket, true, '關閉中…');
 
     try {
-        await apiFetch('admin/close', { method: 'POST', expectJson: false });
-        setStatus('Market closed. No more votes allowed.', 'success');
+        await apiFetch('admin/close', {
+            method: 'POST',
+            body: { market_id: marketId },
+        });
+        setStatus('預測已關閉，將停止接受玩家預測。', 'success');
         await refreshSnapshot(false);
     } catch (error) {
-        setStatus(`Failed to close market: ${error.message}`, 'error');
+        setStatus(`關閉預測失敗：${error.message}`, 'error');
     } finally {
         setLoading(elements.closeMarket, false);
     }
 }
 
-// 處理「結算市集」按鈕事件
 async function handleSettleMarket() {
-    try {
-        requireSettings();
-    } catch (error) {
-        setStatus(error.message, 'error');
+    const marketId = elements.settleMarketSelect?.value;
+    if (!marketId) {
+        setStatus('請選擇要結算的預測。', 'error');
         return;
     }
 
@@ -375,185 +461,87 @@ async function handleSettleMarket() {
     if (optionId === '_custom') {
         optionId = elements.settleCustom.value.trim();
         if (!optionId) {
-            setStatus('Enter the winning option ID.', 'error');
+            setStatus('請輸入獲勝選項的 ID。', 'error');
             return;
         }
     }
 
     if (!optionId) {
-        setStatus('Select the winning option.', 'error');
+        setStatus('請選擇獲勝選項。', 'error');
         return;
     }
 
-    setStatus('Settling market...', 'info');
-    setLoading(elements.settleMarket, true, 'Settling…');
+    setStatus('結算預測中…', 'info');
+    setLoading(elements.settleMarket, true, '結算中…');
 
     try {
         await apiFetch('admin/settle', {
             method: 'POST',
-            body: { correct_option_id: optionId }
+            body: { market_id: marketId, correct_option_id: optionId },
         });
-        setStatus('本次預測已結算並發布分數', 'success');
+        setStatus('預測已成功結算。', 'success');
         await refreshSnapshot(false);
     } catch (error) {
-        setStatus(`Failed to settle market: ${error.message}`, 'error');
+        setStatus(`結算預測失敗：${error.message}`, 'error');
     } finally {
         setLoading(elements.settleMarket, false);
     }
 }
 
-// 重新取得市集快照，更新畫面
-async function refreshSnapshot(showStatus = true) {
-    try {
-        requireSettings();
-    } catch (error) {
-        if (showStatus) setStatus(error.message, 'error');
-        return;
-    }
-
-    if (showStatus) setStatus('Loading snapshot...', 'info');
-
-    try {
-        const snapshot = await apiFetch('snapshot');
-        state.snapshot = snapshot;
-        renderSnapshot(snapshot);
-        if (showStatus) setStatus('Snapshot updated.', 'success');
-    } catch (error) {
-        state.snapshot = null;
-        renderSnapshot(null);
-        setStatus(`Unable to load snapshot: ${error.message}`, 'error');
-    }
-}
-
-// 將市集快照渲染到畫面
-function renderSnapshot(snapshot) {
-    const container = elements.marketSummary;
-    if (!container) return;
-
-    if (!snapshot?.market) {
-        container.classList.add('empty');
-        container.innerHTML = 'No active market. Open a new one to start accepting votes.';
-        updateSettleOptions([]);
-        return;
-    }
-
-    const market = snapshot.market;
-    const counts = market.counts ?? {};
-    const startedAt = market.started_at ? new Date(market.started_at).toLocaleString() : '—';
-    const options = market.options ?? [];
-
-    const items = options.map((opt) => {
-        const votes = counts[opt.id] ?? 0;
-        return `<div class="option-item"><span>${opt.id} — ${opt.label}</span><span>${votes} vote${votes === 1 ? '' : 's'}</span></div>`;
-    }).join('');
-
-    container.classList.remove('empty');
-    container.innerHTML = `
-        <div><strong>${market.title}</strong></div>
-        <div class="card-help">ID: ${market.id} &nbsp;•&nbsp; Status: <span style="text-transform:uppercase;">${market.status}</span></div>
-        <div class="card-help">Started: ${startedAt}</div>
-        <div class="options">${items}</div>
-    `;
-
-    updateSettleOptions(options);
-}
-
-// 更新結算下拉選單的選項
-function updateSettleOptions(options) {
-    elements.settleOption.innerHTML = '';
-
-    const placeholder = document.createElement('option');
-    placeholder.value = '';
-    placeholder.textContent = options.length ? 'Select winning option' : 'No options available';
-    elements.settleOption.appendChild(placeholder);
-
-    options.forEach((opt) => {
-        const option = document.createElement('option');
-        option.value = opt.id;
-        option.textContent = `${opt.id} — ${opt.label}`;
-        elements.settleOption.appendChild(option);
-    });
-
-    const custom = document.createElement('option');
-    custom.value = '_custom';
-    custom.textContent = 'Enter option ID manually';
-    elements.settleOption.appendChild(custom);
-
-    elements.settleCustom.value = '';
-    toggleCustomSettle(false);
-}
-
-// 切換自訂結算選項輸入欄位顯示/隱藏
-function toggleCustomSettle(show) {
-    if (show) {
-        elements.settleCustomWrapper.classList.remove('hidden');
-    } else {
-        elements.settleCustomWrapper.classList.add('hidden');
-        elements.settleCustom.value = '';
-    }
-}
-
-// 預設至少有兩個選項欄位
-function ensureOptionRows() {
-    if (elements.optionsContainer.children.length === 0) {
-        addOptionRow({ id: 'A', label: 'Team A' });
-        addOptionRow({ id: 'B', label: 'Team B' });
-    }
-}
-
-// 綁定所有按鈕與互動事件
 function attachEventListeners() {
-    elements.saveSettings.addEventListener('click', (event) => {
+    elements.saveSettings?.addEventListener('click', (event) => {
         event.preventDefault();
         saveSettings();
     });
 
-    elements.clearSettings.addEventListener('click', (event) => {
+    elements.clearSettings?.addEventListener('click', (event) => {
         event.preventDefault();
         clearSettings();
     });
 
-    elements.addOption.addEventListener('click', (event) => {
+    elements.addOption?.addEventListener('click', (event) => {
         event.preventDefault();
         addOptionRow();
     });
 
-    elements.openMarket.addEventListener('click', (event) => {
+    elements.openMarket?.addEventListener('click', (event) => {
         event.preventDefault();
         handleOpenMarket();
     });
 
-    elements.closeMarket.addEventListener('click', (event) => {
+    elements.closeMarket?.addEventListener('click', (event) => {
         event.preventDefault();
         handleCloseMarket();
     });
 
-    elements.settleMarket.addEventListener('click', (event) => {
+    elements.settleMarket?.addEventListener('click', (event) => {
         event.preventDefault();
         handleSettleMarket();
     });
 
-    elements.refresh.addEventListener('click', (event) => {
+    elements.refresh?.addEventListener('click', (event) => {
         event.preventDefault();
         refreshSnapshot();
     });
 
-    elements.settleOption.addEventListener('change', () => {
+    elements.settleOption?.addEventListener('change', () => {
         toggleCustomSettle(elements.settleOption.value === '_custom');
+    });
+
+    elements.settleMarketSelect?.addEventListener('change', () => {
+        updateSettleOptions(elements.settleMarketSelect.value);
     });
 }
 
-// 初始化頁面
 async function init() {
     ensureOptionRows();
     attachEventListeners();
     await loadSettings();
-    if (state.baseUrl && state.adminToken) {
+    if (state.adminToken) {
         await refreshSnapshot(false);
     } else {
         clearStatus();
     }
 }
 
-// 頁面載入完成後執行初始化
 document.addEventListener('DOMContentLoaded', init);
