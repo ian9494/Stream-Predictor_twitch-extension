@@ -20,6 +20,7 @@ const elements = {
     openMarket: document.getElementById('open-market'),
     openId: document.getElementById('open-id'),
     openTitle: document.getElementById('open-title'),
+    openReward: document.getElementById('open-reward'),
     closeMarket: document.getElementById('close-market'),
     closeMarketSelect: document.getElementById('close-market-select'),
     settleMarket: document.getElementById('settle-market'),
@@ -231,6 +232,20 @@ function collectOptions() {
     return options;
 }
 
+function getRewardPoints() {
+    const input = elements.openReward;
+    const raw = input ? input.value.trim() : '';
+    if (!raw) {
+        return 1;
+    }
+    const reward = Number.parseInt(raw, 10);
+    if (!Number.isFinite(reward) || reward <= 0) {
+        throw new Error('正確獲得積分需為正整數');
+    }
+    if (input) input.value = String(reward);
+    return reward;
+}
+
 async function saveSettings() {
     const token = elements.adminToken.value.trim();
     if (!token) {
@@ -268,18 +283,18 @@ function buildMarketSummaryItem(market) {
         return `<div class="option-item"><span>${opt.id} · ${opt.label}</span><span>${votes} 票</span></div>`;
     }).join('');
     const startedAt = market.started_at ? new Date(market.started_at).toLocaleString() : '-';
+    const rewardPoints = market.reward_points ?? 1;
     return `
         <div class="market-card">
             <div><strong>${market.title}</strong></div>
             <div class="card-help">預測 ID：${market.id}</div>
             <div class="card-help">狀態：<span style="text-transform:uppercase;">${market.status}</span></div>
             <div class="card-help">開始時間：${startedAt}</div>
+            <div class="card-help">Reward points for correct pick: ${rewardPoints}</div>
             <div class="options">${lines}</div>
         </div>
     `;
-}
-
-function renderSnapshot(snapshot) {
+}function renderSnapshot(snapshot) {
     const container = elements.marketSummary;
     if (!container) return;
 
@@ -387,8 +402,10 @@ async function refreshSnapshot(showStatus = true) {
 
 async function handleOpenMarket() {
     let options;
+    let rewardPoints;
     try {
         options = collectOptions();
+        rewardPoints = getRewardPoints();
         requireSettings();
     } catch (error) {
         setStatus(error.message, 'error');
@@ -413,7 +430,7 @@ async function handleOpenMarket() {
     try {
         await apiFetch('admin/open', {
             method: 'POST',
-            body: { id, title, options },
+            body: { id, title, options, reward_points: rewardPoints },
         });
         setStatus('預測建立成功。', 'success');
         elements.openId.value = '';
@@ -425,7 +442,6 @@ async function handleOpenMarket() {
         setLoading(elements.openMarket, false);
     }
 }
-
 async function handleCloseMarket() {
     const marketId = elements.closeMarketSelect?.value;
     if (!marketId) {

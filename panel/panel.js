@@ -56,10 +56,11 @@ document.addEventListener('DOMContentLoaded', () => {
             card.className = 'card market-card';
             card.innerHTML = `
                 <div class="market-title"><strong>${market.title}</strong></div>
-                <div class="small">代號：${market.id}</div>
-                <div class="small">狀態：${market.status || '-'}</div>
+                <div class="small">預測 ID：${market.id}</div>
+                <div class="small">狀態：${market.status || '-'} </div>
+                <div class="small">正確獲得積分：${market.reward_points ?? 1}</div>
                 <div class="row market-options"></div>
-                <div class="small">開局時間：${market.started_at ? new Date(market.started_at).toLocaleString() : '-'}</div>
+                <div class="small">開始時間：${market.started_at ? new Date(market.started_at).toLocaleString() : '-'} </div>
                 ${market.status === 'settled' && market.correct_option_id
                     ? `<div class="small">正確選項：${market.correct_option_id}</div>` : ''}
             `;

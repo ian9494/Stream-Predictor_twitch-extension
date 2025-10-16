@@ -41,6 +41,7 @@ openMarket({
         { id: 'B', label: 'Team B' },
         { id: 'C', label: 'Team C' },
     ],
+    reward_points: 1,
 });
 
 

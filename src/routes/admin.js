@@ -14,18 +14,19 @@ function requireAdmin(req, res, next) {
 }
 
 router.post('/open', requireAdmin, (req, res) => {
-    const { id, title, options } = req.body || {};
+    const { id, title, options, reward_points } = req.body || {};
     if (!id || !title || !Array.isArray(options) || options.length < 2) {
         return res.status(400).json({ error: 'id/title/options are required and options must contain at least two entries.' });
     }
     try {
-        const market = openMarket({ id, title, options });
+        const market = openMarket({ id, title, options, reward_points });
         res.json({ ok: true, market });
     } catch (error) {
         const map = {
             MARKET_ALREADY_OPEN: 409,
             OPTIONS_INVALID: 400,
             MARKET_PAYLOAD_INVALID: 400,
+            REWARD_INVALID: 400,
         };
         const status = map[error.message] || 500;
         res.status(status).json({ error: error.message });

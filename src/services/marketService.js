@@ -18,7 +18,18 @@ function ensureOptionList(rawOptions) {
     });
 }
 
-function openMarket({ id, title, options }) {
+function normalizeRewardPoints(rawReward) {
+    if (rawReward === undefined || rawReward === null || rawReward === '') {
+        return 1;
+    }
+    const reward = Number.parseInt(rawReward, 10);
+    if (!Number.isFinite(reward) || reward <= 0) {
+        throw new Error('REWARD_INVALID');
+    }
+    return reward;
+}
+
+function openMarket({ id, title, options, reward_points }) {
     if (!id || !title) {
         throw new Error('MARKET_PAYLOAD_INVALID');
     }
@@ -38,6 +49,7 @@ function openMarket({ id, title, options }) {
         closed_at: null,
         settled_at: null,
         correct_option_id: null,
+        reward_points: normalizeRewardPoints(reward_points),
     };
 
     db.markets.set(id, market);
@@ -85,9 +97,10 @@ function settleMarket({ marketId, correct_option_id }) {
     market.correct_option_id = correct_option_id;
 
     const votes = db.votesByMarket.get(marketId) || new Map();
+    const rewardPoints = normalizeRewardPoints(market.reward_points);
     for (const [userKey, option_id] of votes.entries()) {
         const win = option_id === correct_option_id;
-        updateLeaderboard(userKey, { win, points: win ? 1 : 0 });
+        updateLeaderboard(userKey, { win, points: win ? rewardPoints : 0 });
     }
 
     db.history.push({
@@ -96,6 +109,7 @@ function settleMarket({ marketId, correct_option_id }) {
         correct_option_id,
         settled_at: market.settled_at,
         counts: tallyCounts(market.id, market.options),
+        reward_points: rewardPoints,
     });
 
     db.markets.delete(marketId);
