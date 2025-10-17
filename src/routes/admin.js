@@ -57,4 +57,72 @@ router.post('/settle', requireAdmin, (req, res) => {
     res.json({ ok: true, market: result.market });
 });
 
+// export votes as JSON (admin only)
+// GET /admin/export-votes?market_id=demo
+router.get('/export-votes', requireAdmin, (req, res) => {
+    const { market_id } = req.query || {};
+    const dbClient = require('../services/db');
+    const store = require('../services/store');
+
+    // if sqlite available, query votes table
+    const sqlite = dbClient.getDb && dbClient.getDb();
+    if (sqlite) {
+        try {
+            let rows;
+            if (market_id) {
+                rows = sqlite.prepare('SELECT market_id, user_key, option_id FROM votes WHERE market_id = ?').all(market_id);
+            } else {
+                rows = sqlite.prepare('SELECT market_id, user_key, option_id FROM votes').all();
+            }
+            const filename = `votes${market_id ? '-' + market_id : ''}-${Date.now()}.json`;
+            res.setHeader('Content-Type', 'application/json');
+            res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+            return res.send(JSON.stringify(rows, null, 2));
+        } catch (e) {
+            console.warn('[admin/export-votes] sqlite query failed', e && e.message);
+        }
+    }
+
+    // fallback to in-memory
+    const out = [];
+    const votesMap = store.db.votesByMarket;
+    if (market_id) {
+        const m = votesMap.get(market_id) || new Map();
+        for (const [userKey, option_id] of m.entries()) out.push({ market_id, user_key: userKey, option_id });
+    } else {
+        for (const [mId, mMap] of votesMap.entries()) {
+            for (const [userKey, option_id] of mMap.entries()) out.push({ market_id: mId, user_key: userKey, option_id });
+        }
+    }
+    const filename = `votes${market_id ? '-' + market_id : ''}-${Date.now()}.json`;
+    res.setHeader('Content-Type', 'application/json');
+    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+    res.send(JSON.stringify(out, null, 2));
+});
+
+// reset leaderboard (admin only)
+// POST /admin/reset-leaderboard with JSON { confirm: 'yes' }
+router.post('/reset-leaderboard', requireAdmin, (req, res) => {
+    const { confirm } = req.body || {};
+    if (confirm !== 'yes') return res.status(400).json({ error: 'confirm=\'yes\' is required' });
+    const dbClient = require('../services/db');
+    const store = require('../services/store');
+
+    // clear sqlite leaderboard if available
+    try {
+        dbClient.clearLeaderboardRows();
+    } catch (e) {
+        console.warn('[admin/reset-leaderboard] clear db failed', e && e.message);
+    }
+
+    // clear in-memory leaderboard
+    try {
+        store.db.leaderboard = new Map();
+    } catch (e) {
+        console.warn('[admin/reset-leaderboard] clear memory leaderboard failed', e && e.message);
+    }
+
+    res.json({ ok: true });
+});
+
 module.exports = router;

@@ -1,6 +1,7 @@
 // src/services/marketService.js
 const { db } = require('../services/store');
 const { updateLeaderboard, getTop } = require('./leaderboardService');
+const dbClient = require('./db');
 const { getTwitchUserName } = require('../utils/twitchUserCache');
 
 function ensureOptionList(rawOptions) {
@@ -112,8 +113,28 @@ function settleMarket({ marketId, correct_option_id }) {
         reward_points: rewardPoints,
     });
 
+    // try to persist history
+    try {
+        dbClient.insertHistoryRow({
+            id: market.id,
+            title: market.title,
+            correct_option_id,
+            settled_at: market.settled_at,
+            counts_json: JSON.stringify(tallyCounts(market.id, market.options)),
+            reward_points: rewardPoints,
+        });
+    } catch (e) {
+        // ignore if DB not available
+    }
+
     db.markets.delete(marketId);
     db.votesByMarket.delete(marketId);
+    // delete persisted votes for this market if present
+    try {
+        dbClient.deleteVotesForMarket(marketId);
+    } catch (e) {
+        // ignore
+    }
 
     return { ok: true, market };
 }
@@ -176,6 +197,13 @@ function vote({ userKey, option_id, marketId }) {
     const votes = db.votesByMarket.get(marketId) || new Map();
     votes.set(userKey, option_id);
     db.votesByMarket.set(marketId, votes);
+
+    // persist vote to DB if available
+    try {
+        dbClient.upsertVoteRow({ market_id: marketId, user_key: userKey, option_id });
+    } catch (e) {
+        // ignore
+    }
 
     return { ok: true };
 }

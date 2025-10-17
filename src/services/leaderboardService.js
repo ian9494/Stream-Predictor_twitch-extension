@@ -1,5 +1,6 @@
 // src/services/leaderboardService.js
 const { db } = require('../services/store');
+const dbClient = require('./db');
 
 // 更新排行榜
 function updateLeaderboard(userKey, { win, points }) {
@@ -16,6 +17,18 @@ function updateLeaderboard(userKey, { win, points }) {
     if (win) cur.win_count += 1;
     cur.last_active = Date.now();
     db.leaderboard.set(userKey, cur);
+    try {
+        // persist to sqlite if available
+        dbClient.upsertLeaderboardRow({
+            user_key: userKey,
+            total_points: cur.total_points,
+            win_count: cur.win_count,
+            total_votes: cur.total_votes,
+            last_active: cur.last_active,
+        });
+    } catch (e) {
+        // ignore if DB not available
+    }
 }
 
 function extractDisplayName(userKey) {
@@ -39,3 +52,21 @@ function getTop(n = 10) {
 }
 
 module.exports = { updateLeaderboard, getTop, extractDisplayName };
+
+// Load persisted leaderboard rows on startup if DB is available
+try {
+    const rows = dbClient.loadLeaderboardRows();
+    if (Array.isArray(rows) && rows.length > 0) {
+        for (const r of rows) {
+            db.leaderboard.set(r.user_key, {
+                total_points: r.total_points || 0,
+                win_count: r.win_count || 0,
+                total_votes: r.total_votes || 0,
+                last_active: r.last_active || 0,
+            });
+        }
+        console.log(`[DB] Loaded ${rows.length} leaderboard rows from DB`);
+    }
+} catch (e) {
+    // If DB not present or load fails, continue with in-memory only
+}

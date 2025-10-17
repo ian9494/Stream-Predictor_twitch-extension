@@ -10,6 +10,15 @@ const ratelimit = require('express-rate-limit');
 // 載入自訂模組
 const cors = require('./utils/cors');
 const verifyExtensionJwt = require('./middleware/verifyExtensionJwt');
+// initialize DB early so modules that load persisted data can read it
+const dbService = require('./services/db');
+try {
+    const d = dbService.init();
+    if (d) console.log('[DB] SQLite initialized');
+} catch (e) {
+    console.warn('[DB] SQLite initialization failed:', e && e.message);
+}
+
 const snapshotRouter = require('./routes/snapshot');
 const voteRouter = require('./routes/vote');
 const adminRouter = require('./routes/admin');
@@ -33,6 +42,14 @@ app.use('/vote', ratelimit({ windowMs: 30 * 1000, max: 3 }), verifyExtensionJwt,
 app.use('/admin', adminRouter);
 
 // 啟動時建立示範 market
+// initialize DB (if available)
+try {
+    const d = dbService.init();
+    if (d) console.log('[DB] SQLite initialized');
+} catch (e) {
+    console.warn('[DB] SQLite initialization failed:', e && e.message);
+}
+
 openMarket({
     id: 'demo',
     title: '示範市集',
