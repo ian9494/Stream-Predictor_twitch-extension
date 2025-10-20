@@ -6,6 +6,8 @@ const { userKeyOf } = require('../services/store');
 
 const router = express.Router();
 
+const { getChannelIdFromReq } = require('../services/store');
+
 router.post('/', async (req, res) => {
     const { option_id, market_id } = req.body || {};
     if (!option_id || !market_id) {
@@ -17,7 +19,9 @@ router.post('/', async (req, res) => {
         opaque_user_id: req.twitch.opaque_user_id,
     });
 
-    const result = vote({ userKey, option_id, marketId: market_id });
+    const channelId = getChannelIdFromReq(req);
+
+    const result = vote({ userKey, option_id, marketId: market_id, channelId });
 
     if (!result.ok) {
         const map = {

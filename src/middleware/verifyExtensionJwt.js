@@ -1,13 +1,14 @@
 // src/middleware/verifyExtensionJwt.js
 
 const jwt = require('jsonwebtoken');
+const helix = require('../services/twitchHelix');
 
 // 從環境變數取得 base64 編碼的密鑰，並解碼
 const base64Secret = process.env.EXTENSION_SECRET_BASE64 || '';
 const secret = Buffer.from(base64Secret, 'base64');
 
 // 驗證來自瀏覽器擴充功能的 JWT
-module.exports = function verifyExtensionJwt(req, res, next) {
+module.exports = async function verifyExtensionJwt(req, res, next) {
     try {
         // 從 Authorization 標頭取得 Bearer token
         const header = req.headers['authorization'] || '';
@@ -30,11 +31,29 @@ module.exports = function verifyExtensionJwt(req, res, next) {
             opaque_user_id, // 以'U'開頭的Twitch匿名用戶ID
             role,   // viewer/moderator/broadcaster
         } = payload;
-        const channelId = channel_id;
+
+        let channelId = channel_id;
+
+        // if channelId missing, try fallback using helix and any available login-like fields
+        if (!channelId) {
+            // attempt to find a login in payload or query param
+            const possible = (payload.channel_login || payload.channel_name || payload.login || req.query.channel_login || req.query.login || '').toString();
+            if (possible) {
+                try {
+                    const user = await helix.getUserByLogin(possible);
+                    if (user && user.id) {
+                        channelId = user.id;
+                        console.log('[verifyExtensionJwt] Resolved channelId via Helix for', possible, '->', channelId);
+                    }
+                } catch (e) {
+                    console.warn('[verifyExtensionJwt] Helix lookup failed for', possible, e && e.message);
+                }
+            }
+        }
 
         // 確保必要欄位存在
-        if (!channelId || !opaque_user_id) { 
-            console.error('JWT payload missing channelId or opaque_user_id', payload);
+        if (!channelId || !opaque_user_id) {
+            console.error('JWT payload missing channelId or opaque_user_id (after fallback)', { hasChannelId: !!channelId, hasOpaque: !!opaque_user_id });
             return res.status(401).json({ error: 'Invalid token payload' });
         }
 

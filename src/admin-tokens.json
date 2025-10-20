@@ -2,9 +2,11 @@
   {
     "username": "ian9494",
     "token": "fee8b42603da"
+    ,"allowedChannels": ["*"]
   },
   {
     "username": "kant0211",
     "token": "a0d95e83517d"
+    ,"allowedChannels": ["12345678"]
   }
 ]

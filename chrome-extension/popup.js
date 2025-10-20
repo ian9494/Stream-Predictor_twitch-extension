@@ -30,6 +30,12 @@ const elements = {
     settleCustom: document.getElementById('settle-custom'),
     marketSummary: document.getElementById('market-summary'),
     optionTemplate: document.getElementById('option-template'),
+    // channel selection
+    adminChannel: document.getElementById('admin-channel'),
+    channelSelect: document.getElementById('channel-select'),
+    channelSelectWrapper: document.getElementById('channel-select-wrapper'),
+    channelInputWrapper: document.getElementById('channel-input-wrapper'),
+    channelInput: document.getElementById('channel-input'),
 };
 
 const storage = (() => {
@@ -159,7 +165,11 @@ async function apiFetch(path, options = {}) {
     let payload;
     if (body !== undefined) {
         headers['Content-Type'] = 'application/json';
-        payload = typeof body === 'string' ? body : JSON.stringify(body);
+        // ensure channel_id included for admin actions when selected in UI
+        const selectedChannel = getSelectedChannelId();
+        const bodyObj = typeof body === 'string' ? JSON.parse(body) : (body || {});
+        if (selectedChannel) bodyObj.channel_id = selectedChannel;
+        payload = JSON.stringify(bodyObj);
     }
 
     const response = await fetch(`${state.baseUrl.replace(/\/$/, '')}/${path}`, {
@@ -255,6 +265,8 @@ async function saveSettings() {
     await storage.set({ adminToken: token });
     state.adminToken = token;
     updateAdminUsername();
+    // refresh whoami and channel UI after saving token
+    await loadWhoamiAndChannels();
     setStatus('設定已儲存。', 'success');
 }
 
@@ -273,6 +285,57 @@ async function loadSettings() {
         if (elements.adminToken) elements.adminToken.value = saved.adminToken;
     }
     updateAdminUsername();
+    // load whoami and channel UI
+    await loadWhoamiAndChannels();
+}
+
+async function loadWhoamiAndChannels() {
+    // hide by default
+    if (elements.adminChannel) elements.adminChannel.classList.add('hidden');
+    if (!state.adminToken) return;
+    try {
+        const resp = await apiFetch('admin/whoami');
+        const admin = resp?.admin || {};
+        const allowed = Array.isArray(admin.allowedChannels) ? admin.allowedChannels : [];
+        // if wildcard, allow manual input; otherwise show dropdown
+        if (elements.adminChannel) elements.adminChannel.classList.remove('hidden');
+        if (allowed.length === 0 || (allowed.length === 1 && allowed[0] === '*')) {
+            // show input
+            if (elements.channelSelectWrapper) elements.channelSelectWrapper.classList.add('hidden');
+            if (elements.channelInputWrapper) elements.channelInputWrapper.classList.remove('hidden');
+            // clear select values
+            if (elements.channelSelect) elements.channelSelect.innerHTML = '';
+        } else {
+            // populate select
+            if (elements.channelSelectWrapper) elements.channelSelectWrapper.classList.remove('hidden');
+            if (elements.channelInputWrapper) elements.channelInputWrapper.classList.add('hidden');
+            if (elements.channelSelect) {
+                elements.channelSelect.innerHTML = '';
+                const placeholder = document.createElement('option');
+                placeholder.value = '';
+                placeholder.textContent = '請選擇頻道';
+                elements.channelSelect.appendChild(placeholder);
+                allowed.forEach((ch) => {
+                    const opt = document.createElement('option');
+                    opt.value = ch;
+                    opt.textContent = ch;
+                    elements.channelSelect.appendChild(opt);
+                });
+            }
+        }
+    } catch (err) {
+        console.warn('whoami failed', err && err.message);
+    }
+}
+
+function getSelectedChannelId() {
+    if (!elements.adminChannel) return null;
+    if (elements.channelInputWrapper && !elements.channelInputWrapper.classList.contains('hidden')) {
+        const v = elements.channelInput?.value?.trim();
+        return v || null;
+    }
+    const sel = elements.channelSelect?.value;
+    return sel && sel.trim() ? sel.trim() : null;
 }
 
 function buildMarketSummaryItem(market) {
@@ -389,7 +452,8 @@ function toggleCustomSettle(show) {
 async function refreshSnapshot(showStatus = true) {
     try {
         if (showStatus) setStatus('載入預測資料中…', 'info');
-        const snapshot = await apiFetch('snapshot');
+    const channelId = getSelectedChannelId();
+    const snapshot = await apiFetch(`snapshot${channelId ? `?channel_id=${encodeURIComponent(channelId)}` : ''}`);
         state.snapshot = snapshot;
         renderSnapshot(snapshot);
         if (showStatus) setStatus('預測資料已更新。', 'success');

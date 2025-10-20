@@ -1,15 +1,18 @@
 // src/routes/admin.js
 const express = require('express');
 const { openMarket, closeMarket, settleMarket } = require('../services/marketService');
-const { isValidAdminToken } = require('../utils/adminTokens');
+const { isValidAdminToken, getAdminByToken } = require('../utils/adminTokens');
+const { getChannelIdFromReq } = require('../services/store');
 
 const router = express.Router();
 
 function requireAdmin(req, res, next) {
     const token = req.headers['x-admin-token'];
-    if (!isValidAdminToken(token)) {
+    const admin = getAdminByToken(token);
+    if (!admin) {
         return res.status(403).json({ error: 'Permission denied. Admin token is invalid.' });
     }
+    req.admin = admin;
     next();
 }
 
@@ -19,7 +22,14 @@ router.post('/open', requireAdmin, (req, res) => {
         return res.status(400).json({ error: 'id/title/options are required and options must contain at least two entries.' });
     }
     try {
-        const market = openMarket({ id, title, options, reward_points });
+        const channelId = getChannelIdFromReq(req);
+        // enforce admin allowedChannels if present
+        if (req.admin.allowedChannels && req.admin.allowedChannels.length > 0 && req.admin.allowedChannels.indexOf('*') === -1) {
+            if (!channelId || req.admin.allowedChannels.indexOf(channelId) === -1) {
+                return res.status(403).json({ error: 'Admin token not allowed for this channel' });
+            }
+        }
+        const market = openMarket({ id, title, options, reward_points, channelId });
         res.json({ ok: true, market });
     } catch (error) {
         const map = {
@@ -38,7 +48,13 @@ router.post('/close', requireAdmin, (req, res) => {
     if (!market_id) {
         return res.status(400).json({ error: 'market_id is required' });
     }
-    const result = closeMarket(market_id);
+    const channelId = getChannelIdFromReq(req);
+    if (req.admin.allowedChannels && req.admin.allowedChannels.length > 0 && req.admin.allowedChannels.indexOf('*') === -1) {
+        if (!channelId || req.admin.allowedChannels.indexOf(channelId) === -1) {
+            return res.status(403).json({ error: 'Admin token not allowed for this channel' });
+        }
+    }
+    const result = closeMarket(market_id, channelId);
     if (!result.ok) {
         return res.status(404).json({ error: result.code });
     }
@@ -50,7 +66,13 @@ router.post('/settle', requireAdmin, (req, res) => {
     if (!market_id || !correct_option_id) {
         return res.status(400).json({ error: 'market_id and correct_option_id are required' });
     }
-    const result = settleMarket({ marketId: market_id, correct_option_id });
+    const channelId = getChannelIdFromReq(req);
+    if (req.admin.allowedChannels && req.admin.allowedChannels.length > 0 && req.admin.allowedChannels.indexOf('*') === -1) {
+        if (!channelId || req.admin.allowedChannels.indexOf(channelId) === -1) {
+            return res.status(403).json({ error: 'Admin token not allowed for this channel' });
+        }
+    }
+    const result = settleMarket({ marketId: market_id, correct_option_id, channelId });
     if (!result.ok) {
         return res.status(404).json({ error: result.code });
     }
@@ -123,6 +145,17 @@ router.post('/reset-leaderboard', requireAdmin, (req, res) => {
     }
 
     res.json({ ok: true });
+});
+
+// return admin metadata for popup UI
+router.get('/whoami', requireAdmin, (req, res) => {
+    const admin = req.admin || {};
+    // only expose safe fields
+    const out = {
+        username: admin.username || null,
+        allowedChannels: Array.isArray(admin.allowedChannels) ? admin.allowedChannels : [],
+    };
+    res.json({ ok: true, admin: out });
 });
 
 module.exports = router;

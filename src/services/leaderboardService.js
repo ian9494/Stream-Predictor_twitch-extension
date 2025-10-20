@@ -1,11 +1,14 @@
 // src/services/leaderboardService.js
 const { db } = require('../services/store');
 const dbClient = require('./db');
+const { ensureChannelBucket } = require('../services/store');
 
 // 更新排行榜
-function updateLeaderboard(userKey, { win, points }) {
+function updateLeaderboard(userKey, { win, points }, channelId) {
     // 取得或初始化使用者資料
-    const cur = db.leaderboard.get(userKey) || { 
+    // in-memory per-channel leaderboard
+    const bucket = ensureChannelBucket(channelId);
+    const cur = bucket.leaderboard.get(userKey) || { 
         total_points: 0,
         win_count: 0,
         total_votes: 0,
@@ -16,10 +19,11 @@ function updateLeaderboard(userKey, { win, points }) {
     cur.total_votes += 1;
     if (win) cur.win_count += 1;
     cur.last_active = Date.now();
-    db.leaderboard.set(userKey, cur);
+    bucket.leaderboard.set(userKey, cur);
     try {
-        // persist to sqlite if available
+        // persist to sqlite if available, with channel_id
         dbClient.upsertLeaderboardRow({
+            channel_id: channelId || null,
             user_key: userKey,
             total_points: cur.total_points,
             win_count: cur.win_count,
@@ -40,10 +44,11 @@ function extractDisplayName(userKey) {
     return userKey;
 }
 
-function getTop(n = 10) {
+function getTop(n = 10, channelId) {
     // 將排行榜轉為陣列並排序，並加上 displayName
     const arr = [];
-    for (const [userKey, row] of db.leaderboard.entries()) {
+    const bucket = ensureChannelBucket(channelId);
+    for (const [userKey, row] of bucket.leaderboard.entries()) {
         const win_rate = row.total_votes > 0 ? (row.win_count / row.total_votes) : 0;
         arr.push({ user: userKey, displayName: extractDisplayName(userKey), ...row, win_rate });
     }
@@ -53,20 +58,5 @@ function getTop(n = 10) {
 
 module.exports = { updateLeaderboard, getTop, extractDisplayName };
 
-// Load persisted leaderboard rows on startup if DB is available
-try {
-    const rows = dbClient.loadLeaderboardRows();
-    if (Array.isArray(rows) && rows.length > 0) {
-        for (const r of rows) {
-            db.leaderboard.set(r.user_key, {
-                total_points: r.total_points || 0,
-                win_count: r.win_count || 0,
-                total_votes: r.total_votes || 0,
-                last_active: r.last_active || 0,
-            });
-        }
-        console.log(`[DB] Loaded ${rows.length} leaderboard rows from DB`);
-    }
-} catch (e) {
-    // If DB not present or load fails, continue with in-memory only
-}
+// Note: persisted leaderboard rows are now channel-scoped. We do not auto-load all channels here.
+// Consumers can call dbClient.loadLeaderboardRows(channel_id) to load a specific channel into memory if desired.
