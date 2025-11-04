@@ -32,6 +32,15 @@ module.exports = function verifyExtensionJwt(req, res, next) {
         } = payload;
         const channelId = channel_id;
 
+        // 可由環境變數 DEBUG_JWT=1 開啟詳細 payload 訊息（只在開發/偵錯時使用）
+        if (process.env.DEBUG_JWT === '1') {
+            try {
+                console.log('[verifyExtensionJwt] payload:', JSON.stringify(payload));
+            } catch (e) {
+                console.log('[verifyExtensionJwt] payload (non-serializable):', payload);
+            }
+        }
+
         // 確保必要欄位存在
         if (!channelId || !opaque_user_id) { 
             console.error('JWT payload missing channelId or opaque_user_id', payload);
