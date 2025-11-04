@@ -1,6 +1,7 @@
 // src/middleware/verifyExtensionJwt.js
 
 const jwt = require('jsonwebtoken');
+require('dotenv').config();
 
 // 從環境變數取得 base64 編碼的密鑰，並解碼
 const base64Secret = process.env.EXTENSION_SECRET_BASE64 || '';

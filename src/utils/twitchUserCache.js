@@ -8,7 +8,8 @@ const cache = new Map(); // user_id -> { name, ts }
 const CACHE_TTL = 60 * 60 * 1000; // 1小時
 
 const CLIENT_ID = process.env.TWITCH_CLIENT_ID;
-const ACCESS_TOKEN = process.env.TWITCH_APP_TOKEN; // 必須設定
+// ACCESS_TOKEN will be obtained dynamically via twitchAuth module (supports client credentials and caching)
+const { getAppAccessToken } = require('./twitchAuth');
 
 // fetch 回退：Node 18+ 有 global.fetch，否則嘗試 node-fetch
 let fetchFn = typeof fetch !== 'undefined' ? fetch : null;
@@ -34,13 +35,20 @@ async function getTwitchUserName(userId) {
         return cached.name;
     }
 
-    if (!CLIENT_ID || !ACCESS_TOKEN) {
-        console.warn('[twitchUserCache] TWITCH_CLIENT_ID or TWITCH_APP_TOKEN not configured. Set them in environment (.env) to enable name lookup.');
+    if (!CLIENT_ID) {
+        console.warn('[twitchUserCache] TWITCH_CLIENT_ID not configured. Set TWITCH_CLIENT_ID in environment (.env) to enable name lookup.');
         return '';
     }
 
     if (!fetchFn) {
         console.error('[twitchUserCache] fetch is not available. Install node-fetch or run on Node >=18.');
+        return '';
+    }
+
+    // 取得可用的 app access token（twitchAuth 會快取與續期）
+    const ACCESS_TOKEN = await getAppAccessToken();
+    if (!ACCESS_TOKEN) {
+        console.warn('[twitchUserCache] no app access token available (check TWITCH_CLIENT_ID / TWITCH_CLIENT_SECRET or TWITCH_APP_TOKEN)');
         return '';
     }
 
