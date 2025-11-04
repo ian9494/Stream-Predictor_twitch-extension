@@ -167,7 +167,7 @@ async function getSnapshot(userKey) {
         );
     }
 
-    const leaderboard = getTop(10);
+    const leaderboard = await getTop(10);
 
     return {
         market: markets[0] || null, // legacy single-market clients

@@ -1,6 +1,7 @@
 // src/services/leaderboardService.js
 const { db } = require('../services/store');
 const dbClient = require('./db');
+const { getTwitchUserName } = require('../utils/twitchUserCache');
 
 // 更新排行榜
 function updateLeaderboard(userKey, { win, points }) {
@@ -40,15 +41,31 @@ function extractDisplayName(userKey) {
     return userKey;
 }
 
-function getTop(n = 10) {
-    // 將排行榜轉為陣列並排序，並加上 displayName
+async function getTop(n = 10) {
+    // 將排行榜轉為陣列並排序，並嘗試將 user:xxxxx 轉為 display name（呼叫 Twitch API，會使用快取）
     const arr = [];
     for (const [userKey, row] of db.leaderboard.entries()) {
         const win_rate = row.total_votes > 0 ? (row.win_count / row.total_votes) : 0;
         arr.push({ user: userKey, displayName: extractDisplayName(userKey), ...row, win_rate });
     }
+    // 先排序再取 top N 的 key，然後為這些 item 並行查詢 display name（避免為整個 leaderboard 查詢）
     arr.sort((a, b) => b.total_points - a.total_points || b.win_rate - a.win_rate);
-    return arr.slice(0, n);
+    const top = arr.slice(0, n);
+
+    // 並行查詢 display name（僅對 user: 前綴的項目呼叫 Helix）
+    await Promise.all(top.map(async item => {
+        try {
+            if (item.user && item.user.startsWith('user:')) {
+                const userId = item.user.slice(5);
+                const name = await getTwitchUserName(userId);
+                if (name) item.displayName = name;
+            }
+        } catch (e) {
+            // ignore lookup errors and keep fallback displayName
+        }
+    }));
+
+    return top;
 }
 
 module.exports = { updateLeaderboard, getTop, extractDisplayName };
