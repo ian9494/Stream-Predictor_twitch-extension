@@ -5,7 +5,9 @@
 let fetchFn = typeof fetch !== 'undefined' ? fetch : null;
 if (!fetchFn) {
     try {
-        fetchFn = require('node-fetch');
+        const nf = require('node-fetch');
+        fetchFn = nf && (nf.default || nf);
+        console.log('[twitchAuth] using node-fetch fallback', !!fetchFn);
     } catch (e) {
         fetchFn = null;
     }

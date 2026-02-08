@@ -15,10 +15,11 @@ const { getAppAccessToken } = require('./twitchAuth');
 let fetchFn = typeof fetch !== 'undefined' ? fetch : null;
 if (!fetchFn) {
     try {
-        // node-fetch v3 exports ESM default; require returns function in CommonJS when installed as compatibility
-        // 對於大多數環境，require('node-fetch') 可用於回退
+        // node-fetch v3 is ESM and exposes default; support both v2 (function) and v3 (default)
         // eslint-disable-next-line global-require
-        fetchFn = require('node-fetch');
+        const nf = require('node-fetch');
+        fetchFn = nf && (nf.default || nf);
+        console.log('[twitchUserCache] using node-fetch fallback', !!fetchFn);
     } catch (e) {
         // 沒有 node-fetch，可在啟動環境安裝或升級 Node
         fetchFn = null;
@@ -55,6 +56,7 @@ async function getTwitchUserName(userId) {
     // 查 Twitch API
     const url = `https://api.twitch.tv/helix/users?id=${userId}`;
     try {
+        console.log(`[twitchUserCache] fetching twitch user for userId=${userId} url=${url}`);
         const resp = await fetchFn(url, {
             headers: {
                 'Client-ID': CLIENT_ID,
@@ -62,12 +64,18 @@ async function getTwitchUserName(userId) {
             }
         });
 
-        if (!resp || !resp.ok) {
-            console.warn(`[twitchUserCache] Twitch API request failed for userId=${userId}, status=${resp && resp.status}`);
+        // debug: if non-ok, attempt to capture body text for diagnostics
+        if (resp && !resp.ok) {
+            let text = '';
+            try { text = await resp.text(); } catch (e) { text = String(e && (e.message || e)); }
+            console.warn(`[twitchUserCache] Twitch API non-ok for userId=${userId} status=${resp.status} body=${text}`);
             return '';
         }
 
         const data = await resp.json();
+        if (!data) {
+            console.warn(`[twitchUserCache] Twitch API returned empty body for userId=${userId}`);
+        }
         if (data && data.data && data.data.length > 0) {
             const name = data.data[0].display_name || data.data[0].login || '';
             cache.set(userId, { name, ts: Date.now() });
