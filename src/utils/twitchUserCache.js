@@ -29,34 +29,47 @@ if (!fetchFn) {
 async function getTwitchUserName(userId) {
     if (!userId) return '';
 
-    // 先查快取
+    // [修改重點 1] 強制正規化 ID
+    // Twitch Extension 傳來的 ID 格式通常是 "U" + 數字 (例如 U449285560)
+    // 但 Helix API 只吃純數字，所以我們用正則表達式把開頭的非數字 (^\D+) 切掉
+    const normalizedId = String(userId).replace(/^\D+/, '');
+
+    // 如果切完之後是空的 (例如原本是 A 開頭的匿名 ID)，就直接回傳空字串，不浪費 API
+    if (!normalizedId) {
+        // console.log(`[twitchUserCache] 忽略匿名或無效 ID: ${userId}`);
+        return '';
+    }
+
+    // 先查快取 (Cache Key 維持用原始 userId，避免影響其他邏輯)
     const cached = cache.get(userId);
     if (cached && Date.now() - cached.ts < CACHE_TTL) {
-        console.log(`[twitchUserCache] cache hit for userId=${userId}, name=${cached.name}`);
+        // console.log(`[twitchUserCache] cache hit for userId=${userId}, name=${cached.name}`);
         return cached.name;
     }
 
     if (!CLIENT_ID) {
-        console.warn('[twitchUserCache] TWITCH_CLIENT_ID not configured. Set TWITCH_CLIENT_ID in environment (.env) to enable name lookup.');
+        console.warn('[twitchUserCache] TWITCH_CLIENT_ID not configured.');
         return '';
     }
 
     if (!fetchFn) {
-        console.error('[twitchUserCache] fetch is not available. Install node-fetch or run on Node >=18.');
+        console.error('[twitchUserCache] fetch is not available.');
         return '';
     }
 
-    // 取得可用的 app access token（twitchAuth 會快取與續期）
+    // 取得 Access Token
     const ACCESS_TOKEN = await getAppAccessToken();
     if (!ACCESS_TOKEN) {
-        console.warn('[twitchUserCache] no app access token available (check TWITCH_CLIENT_ID / TWITCH_CLIENT_SECRET or TWITCH_APP_TOKEN)');
+        console.warn('[twitchUserCache] no app access token available');
         return '';
     }
 
-    // 查 Twitch API
-    const url = `https://api.twitch.tv/helix/users?id=${userId}`;
+    // [修改重點 2] 這裡是最關鍵的地方！
+    // 網址參數一定要用我們剛剛處理過的 'normalizedId' (純數字)，絕對不能用原始的 userId
+    const url = `https://api.twitch.tv/helix/users?id=${encodeURIComponent(normalizedId)}`;
+    
     try {
-        console.log(`[twitchUserCache] fetching twitch user for userId=${userId} url=${url}`);
+        // console.log(`[twitchUserCache] fetching twitch user for userId=${userId} (normalized=${normalizedId})`);
         const resp = await fetchFn(url, {
             headers: {
                 'Client-ID': CLIENT_ID,
@@ -64,18 +77,14 @@ async function getTwitchUserName(userId) {
             }
         });
 
-        // debug: if non-ok, attempt to capture body text for diagnostics
         if (resp && !resp.ok) {
             let text = '';
-            try { text = await resp.text(); } catch (e) { text = String(e && (e.message || e)); }
-            console.warn(`[twitchUserCache] Twitch API non-ok for userId=${userId} status=${resp.status} body=${text}`);
+            try { text = await resp.text(); } catch (e) { text = String(e); }
+            console.warn(`[twitchUserCache] Twitch API non-ok for userId=${userId} (normalized=${normalizedId}) status=${resp.status} body=${text}`);
             return '';
         }
 
         const data = await resp.json();
-        if (!data) {
-            console.warn(`[twitchUserCache] Twitch API returned empty body for userId=${userId}`);
-        }
         if (data && data.data && data.data.length > 0) {
             const name = data.data[0].display_name || data.data[0].login || '';
             cache.set(userId, { name, ts: Date.now() });
@@ -83,10 +92,9 @@ async function getTwitchUserName(userId) {
             return name;
         }
 
-        console.warn(`[twitchUserCache] Twitch API 查無 userId=${userId}，不寫入 cache`);
         return '';
     } catch (err) {
-        console.error('[twitchUserCache] fetch error:', err && (err.stack || err.message || err));
+        console.error('[twitchUserCache] fetch error:', err);
         return '';
     }
 }

@@ -19,6 +19,9 @@ document.addEventListener('DOMContentLoaded', () => {
     let authToken = null;
     let userId = null;
     let opaqueUserId = null;
+    let isFetching = false;
+    let pollTimeoutId = null;
+    let pollingActive = false;
 
     function setMsg(text = '', ok = true) {
         if (!elMsg) return;
@@ -27,13 +30,40 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function startPolling() {
-        if (pollTimer) clearInterval(pollTimer);
-        pollTimer = setInterval(fetchSnapshots, FETCH_INTERVAL);
+        pollingActive = true;
+        if (pollTimeoutId) clearTimeout(pollTimeoutId);
+        // kick off recursive poll
+        pollData();
     }
 
     function stopPolling() {
-        if (pollTimer) clearInterval(pollTimer);
-        pollTimer = null;
+        pollingActive = false;
+        if (pollTimeoutId) clearTimeout(pollTimeoutId);
+        pollTimeoutId = null;
+    }
+
+    // 防堆積輪詢：如果上一個未結束則跳過，並使用 AbortController 做主動超時
+    async function pollData() {
+        if (!pollingActive) return;
+        if (isFetching) {
+            // 若正在抓取，延後下一次
+            pollTimeoutId = setTimeout(pollData, FETCH_INTERVAL);
+            return;
+        }
+        isFetching = true;
+        const controller = new AbortController();
+        const fetchTimeout = setTimeout(() => controller.abort(), 8000);
+        try {
+            await fetchSnapshots(controller.signal);
+        } catch (err) {
+            console.log('pollData fetch error:', err && (err.message || err));
+        } finally {
+            clearTimeout(fetchTimeout);
+            isFetching = false;
+            if (pollingActive) {
+                pollTimeoutId = setTimeout(pollData, FETCH_INTERVAL);
+            }
+        }
     }
 
     function renderMarkets(data) {
@@ -134,7 +164,7 @@ document.addEventListener('DOMContentLoaded', () => {
         `;
     }
 
-    async function fetchSnapshots() {
+    async function fetchSnapshots(signal) {
         try {
             let query = '';
             if (userId) {
@@ -146,6 +176,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 headers: {
                     ...(authToken ? { 'Authorization': `Bearer ${authToken}` } : {}),
                 },
+                signal,
             });
             if (!resp.ok) {
                 const err = await resp.json().catch(() => ({}));
@@ -171,19 +202,19 @@ document.addEventListener('DOMContentLoaded', () => {
             authToken = auth.token;
             userId = auth.userId;
             opaqueUserId = auth.opaqueUserId;
-            fetchSnapshots();
+            fetchSnapshots().catch(() => {});
             startPolling();
         });
         window.Twitch.ext.onVisibilityChanged((isVisible) => {
             if (isVisible) {
-                fetchSnapshots();
+                fetchSnapshots().catch(() => {});
                 startPolling();
             } else {
                 stopPolling();
             }
         });
     } else {
-        fetchSnapshots();
+        fetchSnapshots().catch(() => {});
         startPolling();
     }
 });
