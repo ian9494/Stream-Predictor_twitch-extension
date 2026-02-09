@@ -12,7 +12,7 @@ const corsMiddleware = cors({
     origin: (o, cb) => (!o || allowed.some(r => r.test(o))) ? cb(null, true) : cb(new Error('CORS not allowed'), false),
     credentials: true,
     methods: ['GET', 'POST', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization', 'X-Extension-JWT'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'X-Extension-JWT', 'x-admin-token'],
 });
 
 module.exports = corsMiddleware;

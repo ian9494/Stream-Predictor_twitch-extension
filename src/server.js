@@ -64,6 +64,12 @@ openMarket({
 
 // 啟動伺服器
 const PORT = process.env.PORT || 8081; // 預設埠號 8081
-app.listen(PORT, () => {
+const server = app.listen(PORT, () => {
     console.log(`[EBS] Server is running on port ${PORT}`);
 });
+
+// [關鍵修復] 設定 Keep-Alive Timeout
+// 必須大於 Cloudflared 的設定 (90000ms)，這裡設 120000ms (120秒)
+// 這能確保後端不會在 Cloudflared 還想用連線時，突然把電話掛斷
+server.keepAliveTimeout = 120 * 1000; 
+server.headersTimeout = 121 * 1000; // 必須比 keepAliveTimeout 大
