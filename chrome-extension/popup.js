@@ -162,10 +162,16 @@ async function apiFetch(path, options = {}) {
         payload = typeof body === 'string' ? body : JSON.stringify(body);
     }
 
-    const response = await fetch(`${state.baseUrl.replace(/\/$/, '')}/${path}`, {
+    // [修改殭屍線路問題] 加入時間戳記 _t
+    // 讓每次按按鈕都是「全新的請求」，Edge 就無法重用那條壞掉的連線
+    const separator = path.includes('?') ? '&' : '?';
+    const url = `${state.baseUrl.replace(/\/$/, '')}/${path}${separator}_t=${Date.now()}`;
+
+    const response = await fetch(url, {
         method,
         headers,
         body: payload,
+        cache: 'no-store' // [修改重點] 禁用快取
     });
 
     if (!response.ok) {
