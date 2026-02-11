@@ -22,6 +22,7 @@ document.addEventListener('DOMContentLoaded', () => {
     let isFetching = false;
     let pollTimeoutId = null;
     let pollingActive = false;
+    let currentPollInterval = FETCH_INTERVAL;
 
     function setMsg(text = '', ok = true) {
         if (!elMsg) return;
@@ -46,8 +47,8 @@ document.addEventListener('DOMContentLoaded', () => {
     async function pollData() {
         if (!pollingActive) return;
         if (isFetching) {
-            // 若正在抓取，延後下一次
-            pollTimeoutId = setTimeout(pollData, FETCH_INTERVAL);
+            // 如果還在跑，就用目前的頻率重試，避免堆積過多請求
+            pollTimeoutId = setTimeout(pollData, currentPollInterval);
             return;
         }
         isFetching = true;
@@ -55,13 +56,20 @@ document.addEventListener('DOMContentLoaded', () => {
         const fetchTimeout = setTimeout(() => controller.abort(), 8000);
         try {
             await fetchSnapshots(controller.signal);
+
+            // 如果正常，回復正常的3秒輪詢頻率
+            currentPollInterval = FETCH_INTERVAL;
+
         } catch (err) {
             console.log('pollData fetch error:', err && (err.message || err));
+
+            // 如果是 fetch 失敗或超時，增加輪詢頻率到10秒，避免短時間內重複失敗
+            currentPollInterval = 10000;
         } finally {
             clearTimeout(fetchTimeout);
             isFetching = false;
             if (pollingActive) {
-                pollTimeoutId = setTimeout(pollData, FETCH_INTERVAL);
+                pollTimeoutId = setTimeout(pollData, currentPollInterval);
             }
         }
     }
@@ -172,11 +180,19 @@ document.addEventListener('DOMContentLoaded', () => {
             } else if (opaqueUserId) {
                 query = `?opaque_user_id=${encodeURIComponent(opaqueUserId)}`;
             }
-            const resp = await fetch(`${EBS_BASE}/snapshot${query}`, {
+
+            // 加入時間戳記，強迫瀏覽器不走快取
+            const timestamp = Date.now();
+            const separator = query ? '&' : '?';
+            const url = `${EBS_BASE}/snapshot${query}${separator}_t=${timestamp}`;
+            
+            const resp = await fetch(url, {
                 headers: {
                     ...(authToken ? { 'Authorization': `Bearer ${authToken}` } : {}),
                 },
                 signal,
+                cache: 'no-store', // 禁用快取
+                keepalive: true, // 允許在頁面卸載時完成請求
             });
             if (!resp.ok) {
                 const err = await resp.json().catch(() => ({}));
@@ -194,6 +210,7 @@ document.addEventListener('DOMContentLoaded', () => {
             }
             if (elLeaderboard) elLeaderboard.innerHTML = '';
             if (elSelfInfo) elSelfInfo.innerHTML = '';
+            throw error;
         }
     }
 
