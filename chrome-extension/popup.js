@@ -1,14 +1,11 @@
 const DEFAULT_BASE_URL = 'https://twitch-extension-api.noctration.dev/';
-const STORAGE_KEYS = ['adminToken'];
+const STORAGE_KEYS = ['adminToken', 'adminUsername'];
 const FALLBACK_STORAGE_KEY = 'shotcall-market-control-settings';
 
-const ADMIN_TOKENS = [
-    { username: 'ian9494', token: 'fee8b42603da' },
-    { username: 'kant0211', token: 'a0d95e83517d' },
-];
-
 const elements = {
+    adminArea: document.getElementById('admin-area'),
     adminUsername: document.getElementById('admin-username'),
+    adminUsernameInput: document.getElementById('admin-username-input'),
     refresh: document.getElementById('refresh'),
     status: document.getElementById('status'),
     statusText: document.getElementById('status-text'),
@@ -91,19 +88,20 @@ const storage = (() => {
 const state = {
     baseUrl: DEFAULT_BASE_URL,
     adminToken: '',
+    adminUsername: '',
     snapshot: null,
 };
 
-function getUsernameByToken(token) {
-    if (!token) return '';
-    const found = ADMIN_TOKENS.find((entry) => entry.token === token.trim());
-    return found ? found.username : '權限不足';
-}
-
 function updateAdminUsername() {
     if (!elements.adminUsername) return;
-    const username = getUsernameByToken(state.adminToken);
-    elements.adminUsername.textContent = username ? `以 ${username} 身分登入` : '';
+    elements.adminUsername.textContent = state.adminUsername ? `以 ${state.adminUsername} 身分登入` : '';
+    
+    // 任務 C: 根據驗證狀態動態切換管理介面顯示
+    if (state.adminToken && state.adminUsername) {
+        elements.adminArea?.classList.remove('hidden');
+    } else {
+        elements.adminArea?.classList.add('hidden');
+    }
 }
 
 function setStatus(message, type = 'info') {
@@ -145,16 +143,21 @@ function requireSettings() {
 }
 
 async function apiFetch(path, options = {}) {
-    requireSettings();
     const {
         method = 'GET',
         body,
         expectJson = true,
+        bypassSettingsCheck = false,
     } = options;
 
-    const headers = {
-        'x-admin-token': state.adminToken.trim(),
-    };
+    if (!bypassSettingsCheck) {
+        requireSettings();
+    }
+
+    const headers = {};
+    if (state.adminToken) {
+        headers['x-admin-token'] = state.adminToken.trim();
+    }
 
     let payload;
     if (body !== undefined) {
@@ -253,23 +256,59 @@ function getRewardPoints() {
 }
 
 async function saveSettings() {
+    const username = elements.adminUsernameInput?.value.trim();
     const token = elements.adminToken.value.trim();
-    if (!token) {
-        setStatus('管理者金鑰不可留白。', 'error');
+
+    if (!username || !token) {
+        setStatus('帳號與金鑰皆不可留白。', 'error');
         return;
     }
-    await storage.set({ adminToken: token });
-    state.adminToken = token;
-    updateAdminUsername();
-    setStatus('設定已儲存。', 'success');
+
+    setStatus('驗證中...', 'info');
+    setLoading(elements.saveSettings, true, '驗證中...');
+
+    try {
+        // 任務 B: 使用 fetch 發送 POST 請求到後端的 /verify-admin
+        const responseData = await apiFetch('verify-admin', {
+            method: 'POST',
+            body: { username, token },
+            bypassSettingsCheck: true // 驗證時跳過 requireSettings
+        });
+
+        if (responseData.ok) {
+            // 任務 C: 驗證成功時更新 state 並儲存
+            state.adminToken = token;
+            state.adminUsername = username;
+            await storage.set({ adminToken: token, adminUsername: username });
+            
+            updateAdminUsername();
+            setStatus('驗證成功！設定已儲存。', 'success');
+            await refreshSnapshot(false);
+        }
+    } catch (error) {
+        // 任務 D: 錯誤處理與提示
+        let errorMsg = '連線失敗或管理員驗證錯誤。';
+        if (error.message.includes('401')) {
+            errorMsg = '帳號或金鑰錯誤，請重新確認。';
+        } else if (error.message.includes('HTTP')) {
+            errorMsg = `伺服器回傳錯誤: ${error.message}`;
+        }
+        
+        setStatus(errorMsg, 'error');
+        alert(`驗證失敗: ${errorMsg}`); // 添加彈窗提示
+    } finally {
+        setLoading(elements.saveSettings, false);
+    }
 }
 
 async function clearSettings() {
     await storage.remove(STORAGE_KEYS);
     state.adminToken = '';
+    state.adminUsername = '';
+    if (elements.adminUsernameInput) elements.adminUsernameInput.value = '';
     if (elements.adminToken) elements.adminToken.value = '';
     updateAdminUsername();
-    setStatus('設定已清除。', 'success');
+    setStatus('帳號已登出。', 'success');
 }
 
 async function loadSettings() {
@@ -277,6 +316,10 @@ async function loadSettings() {
     if (saved?.adminToken) {
         state.adminToken = saved.adminToken;
         if (elements.adminToken) elements.adminToken.value = saved.adminToken;
+    }
+    if (saved?.adminUsername) {
+        state.adminUsername = saved.adminUsername;
+        if (elements.adminUsernameInput) elements.adminUsernameInput.value = saved.adminUsername;
     }
     updateAdminUsername();
 }

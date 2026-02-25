@@ -14,10 +14,25 @@ function getAdminTokens() {
     }
 }
 
+async function getAdminTokensAsync() {
+    try {
+        const raw = await fs.promises.readFile(TOKENS_PATH, 'utf8');
+        return JSON.parse(raw);
+    } catch (e) {
+        return [];
+    }
+}
+
 function isValidAdminToken(token) {
     if (!token) return false;
     const tokens = getAdminTokens();
     return tokens.some(admin => admin.token === token);
 }
 
-module.exports = { isValidAdminToken };
+async function verifyAdminAsync(username, token) {
+    if (!username || !token) return null;
+    const tokens = await getAdminTokensAsync();
+    return tokens.find(admin => admin.username === username && admin.token === token);
+}
+
+module.exports = { isValidAdminToken, verifyAdminAsync };

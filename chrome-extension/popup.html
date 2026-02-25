@@ -20,68 +20,74 @@
         <h2>管理者驗證</h2>
         <div id="admin-username" class="admin-username"></div>
         <label>
+            管理員帳號
+            <input type="text" id="admin-username-input" placeholder="請輸入管理員帳號">
+        </label>
+        <label>
             管理者金鑰
             <input type="password" id="admin-token" placeholder="請輸入管理者金鑰">
         </label>
         <div class="actions">
-            <button id="save-settings">儲存金鑰</button>
-            <button id="clear-settings" class="danger secondary">清除</button>
+            <button id="save-settings">驗證並儲存</button>
+            <button id="clear-settings" class="danger secondary">登出</button>
         </div>
     </section>
 
-    <section class="card">
-        <h2>目前預測</h2>
-        <div id="market-summary" class="empty">目前沒有進行中的預測，請先建立新的預測。</div>
-    </section>
+    <div id="admin-area" class="hidden">
+        <section class="card">
+            <h2>目前預測</h2>
+            <div id="market-summary" class="empty">目前沒有進行中的預測，請先建立新的預測。</div>
+        </section>
 
-    <section class="card">
-        <h2>開啟預測</h2>
-        <label>
-            預測 ID
-            <input type="text" id="open-id" placeholder="例：match-2025-10-15">
-        </label>
-        <label>
-            標題
-            <input type="text" id="open-title" placeholder="範例：第三場誰會勝利？">
-        </label>
-        <label>
-            正確獲得積分
-            <input type="number" id="open-reward" min="1" step="1" placeholder="例如：3" value="1">
-        </label>
-        <div id="options-container"></div>
-        <div class="actions">
-            <button id="add-option" class="secondary">新增選項</button>
-        </div>
-        <button id="open-market" class="primary">開啟預測</button>
-    </section>
+        <section class="card">
+            <h2>開啟預測</h2>
+            <label>
+                預測 ID
+                <input type="text" id="open-id" placeholder="例：match-2025-10-15">
+            </label>
+            <label>
+                標題
+                <input type="text" id="open-title" placeholder="範例：第三場誰會勝利？">
+            </label>
+            <label>
+                正確獲得積分
+                <input type="number" id="open-reward" min="1" step="1" placeholder="例如：3" value="1">
+            </label>
+            <div id="options-container"></div>
+            <div class="actions">
+                <button id="add-option" class="secondary">新增選項</button>
+            </div>
+            <button id="open-market" class="primary">開啟預測</button>
+        </section>
 
-    <section class="card">
-        <h2>關閉預測</h2>
-        <label>
-            選擇預測
-            <select id="close-market-select"></select>
-        </label>
-        <p class="card-help">關閉預測後會立即停止接收新的玩家預測。</p>
-        <button id="close-market" class="primary">關閉預測</button>
-    </section>
+        <section class="card">
+            <h2>關閉預測</h2>
+            <label>
+                選擇預測
+                <select id="close-market-select"></select>
+            </label>
+            <p class="card-help">關閉預測後會立即停止接收新的玩家預測。</p>
+            <button id="close-market" class="primary">關閉預測</button>
+        </section>
 
-    <section class="card">
-        <h2>結算預測</h2>
-        <label>
-            選擇預測
-            <select id="settle-market-select"></select>
-        </label>
-        <label>
-            獲勝選項
-            <select id="settle-option"></select>
-        </label>
-        <label id="settle-custom-wrapper" class="hidden">
-            自訂選項 ID
-            <input type="text" id="settle-custom" placeholder="請輸入獲勝選項 ID">
-        </label>
-        <p class="card-help">結算預測後會立即記錄勝負並封存結果。</p>
-        <button id="settle-market" class="primary danger">結算預測</button>
-    </section>
+        <section class="card">
+            <h2>結算預測</h2>
+            <label>
+                選擇預測
+                <select id="settle-market-select"></select>
+            </label>
+            <label>
+                獲勝選項
+                <select id="settle-option"></select>
+            </label>
+            <label id="settle-custom-wrapper" class="hidden">
+                自訂選項 ID
+                <input type="text" id="settle-custom" placeholder="請輸入獲勝選項 ID">
+            </label>
+            <p class="card-help">結算預測後會立即記錄勝負並封存結果。</p>
+            <button id="settle-market" class="primary danger">結算預測</button>
+        </section>
+    </div>
 
     <template id="option-template">
         <div class="option-row">

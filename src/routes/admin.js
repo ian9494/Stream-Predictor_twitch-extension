@@ -1,7 +1,7 @@
 // src/routes/admin.js
 const express = require('express');
 const { openMarket, closeMarket, settleMarket } = require('../services/marketService');
-const { isValidAdminToken } = require('../utils/adminTokens');
+const { isValidAdminToken, verifyAdminAsync } = require('../utils/adminTokens');
 
 const router = express.Router();
 

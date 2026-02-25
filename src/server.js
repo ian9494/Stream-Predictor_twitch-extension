@@ -23,6 +23,7 @@ const snapshotRouter = require('./routes/snapshot');
 const voteRouter = require('./routes/vote');
 const adminRouter = require('./routes/admin');
 const { openMarket } = require('./services/marketService');
+const { verifyAdminAsync } = require('./utils/adminTokens');
 
 
 // 初始化 Express 應用
@@ -35,6 +36,32 @@ app.set('trust proxy', 1); // 如果在 proxy 後面運行 (如 Heroku)，需要
 
 // Health
 app.get('/health', (req, res) => res.json({ ok: true, ts: Date.now() }));
+
+// 任務 A, B, C: 管理員驗證路由 (直接在 root 下或 admin 下皆可)
+// 這裡將其設定在 /verify-admin 以符合需求
+app.post('/verify-admin', async (req, res) => {
+    const { username, token } = req.body || {};
+    if (!username || !token) {
+        return res.status(400).json({ error: 'Username and token are required.' });
+    }
+
+    try {
+        const admin = await verifyAdminAsync(username, token);
+        if (admin) {
+            // 任務 C: 匹配成功 200 OK + 權限資訊
+            return res.status(200).json({
+                ok: true,
+                username: admin.username,
+                permissions: ['admin', 'market-control'], 
+            });
+        } else {
+            // 任務 C: 匹配失敗 401 Unauthorized
+            return res.status(401).json({ error: 'Invalid username or token.' });
+        }
+    } catch (e) {
+        return res.status(500).json({ error: 'Internal server error.' });
+    }
+});
 
 // Route 設定
 app.use(snapshotRouter);
