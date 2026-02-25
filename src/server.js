@@ -34,6 +34,18 @@ app.use(express.json());
 app.use(cors);
 app.set('trust proxy', 1); // 如果在 proxy 後面運行 (如 Heroku)，需要設定這個
 
+// Temporary request logger for debugging 404 issues (disabled in production)
+if (process.env.NODE_ENV !== 'production') {
+    app.use((req, res, next) => {
+        try {
+            console.log(`[REQ] ${new Date().toISOString()} ${req.method} ${req.originalUrl} host=${req.headers.host} origin=${req.headers.origin || ''}`);
+        } catch (e) {
+            console.log('[REQ] logger error', e && e.message);
+        }
+        next();
+    });
+}
+
 // Health
 app.get('/health', (req, res) => res.json({ ok: true, ts: Date.now() }));
 

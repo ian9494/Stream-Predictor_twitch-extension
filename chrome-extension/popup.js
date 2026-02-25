@@ -167,8 +167,19 @@ async function apiFetch(path, options = {}) {
 
     // [修改殭屍線路問題] 加入時間戳記 _t
     // 讓每次按按鈕都是「全新的請求」，Edge 就無法重用那條壞掉的連線
+    // Ensure baseUrl is sane — fallback to DEFAULT_BASE_URL if empty
     const separator = path.includes('?') ? '&' : '?';
-    const url = `${state.baseUrl.replace(/\/$/, '')}/${path}${separator}_t=${Date.now()}`;
+    const base = (state.baseUrl && String(state.baseUrl).trim())
+        ? String(state.baseUrl).replace(/\/$/, '')
+        : String(DEFAULT_BASE_URL).replace(/\/$/, '');
+    const url = `${base}/${path}${separator}_t=${Date.now()}`;
+
+    // Debugging: log constructed URL so failed requests can be diagnosed
+    try {
+        console.debug('[popup] apiFetch', method, url, headers, body ? JSON.parse(payload || '{}') : undefined);
+    } catch (e) {
+        console.debug('[popup] apiFetch', method, url, headers);
+    }
 
     const response = await fetch(url, {
         method,
