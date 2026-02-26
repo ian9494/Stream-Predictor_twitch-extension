@@ -15,7 +15,7 @@ function requireAdmin(req, res, next) {
 
 // 任務 A, B, C: 管理員驗證路由 (直接在 root 下或 admin 下皆可)
 // 這裡將其設定在 /verify 以符合需求
-app.post('/verify', async (req, res) => {
+router.post('/verify', async (req, res) => {
     const { username, token } = req.body || {};
     if (!username || !token) {
         return res.status(400).json({ error: 'Username and token are required.' });

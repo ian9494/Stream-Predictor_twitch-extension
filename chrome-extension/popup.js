@@ -280,7 +280,7 @@ async function saveSettings() {
 
     try {
         // 任務 B: 使用 fetch 發送 POST 請求到後端的 /verify
-        const responseData = await apiFetch('/verify', {
+        const responseData = await apiFetch('admin/verify', {
             method: 'POST',
             body: { username, token },
             bypassSettingsCheck: true // 驗證時跳過 requireSettings
