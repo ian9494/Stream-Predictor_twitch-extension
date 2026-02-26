@@ -74,6 +74,7 @@ openMarket({
     reward_points: 1,
 });
 
+console.log("--- VERSION 2.0 BOOTED AT: " + new Date().toLocaleString() + " ---");
 
 // 啟動伺服器
 const PORT = process.env.PORT || 8081; // 預設埠號 8081
