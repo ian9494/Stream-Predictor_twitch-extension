@@ -30,7 +30,7 @@ function normalizeRewardPoints(rawReward) {
     return reward;
 }
 
-function openMarket({ id, title, options, reward_points }) {
+function openMarket({ id, title, options, reward_points, auto_close_seconds }) {
     if (!id || !title) {
         throw new Error('MARKET_PAYLOAD_INVALID');
     }
@@ -47,6 +47,7 @@ function openMarket({ id, title, options, reward_points }) {
         options: ensureOptionList(options),
         status: 'open',
         started_at: Date.now(),
+        expires_at: auto_close_seconds ? Date.now() + (auto_close_seconds * 1000) : null,
         closed_at: null,
         settled_at: null,
         correct_option_id: null,
@@ -55,6 +56,16 @@ function openMarket({ id, title, options, reward_points }) {
 
     db.markets.set(id, market);
     if (!db.votesByMarket.has(id)) db.votesByMarket.set(id, new Map());
+
+    // 如果有設定自動關盤時間，設定一個排程器
+    if (auto_close_seconds) {
+        setTimeout(() => {
+            const current = db.markets.get(id);
+            if (current && current.status === 'open') {
+                closeMarket(id);
+            }
+        }, auto_close_seconds * 1000);
+    }
 
     return market;
 }
@@ -188,6 +199,11 @@ function vote({ userKey, option_id, marketId }) {
         return { ok: false, code: 'NO_ACTIVE_MARKET' };
     }
     if (market.status !== 'open') {
+        return { ok: false, code: 'MARKET_CLOSED' };
+    }
+    // 額外檢查是否已過期 (防止 setTimeout 延遲)
+    if (market.expires_at && Date.now() > market.expires_at) {
+        closeMarket(marketId); // 順便更新狀態
         return { ok: false, code: 'MARKET_CLOSED' };
     }
     if (!market.options.some(option => option.id === option_id)) {

@@ -41,15 +41,21 @@
                 標題
                 <input type="text" id="open-title" placeholder="範例：第三場誰會勝利？">
             </label>
-            <label>
-                正確獲得積分
-                <input type="number" id="open-reward" min="1" step="1" placeholder="例如：3" value="1">
-            </label>
-            <div id="options-container"></div>
-            <div class="actions">
-                <button id="add-option" class="secondary">新增選項</button>
+            <div style="display: flex; gap: 8px;">
+                <label style="flex: 1;">
+                    正確積分
+                    <input type="number" id="open-reward" min="1" step="1" placeholder="積分" value="1">
+                </label>
+                <label style="flex: 1;">
+                    自動關盤 (秒)
+                    <input type="number" id="open-duration" min="0" step="1" placeholder="留白則手動" value="">
+                </label>
             </div>
-            <button id="open-market" class="primary">開啟預測</button>
+            <div id="options-container"></div>
+            <div class="actions" style="margin-top: 8px;">
+                <button id="add-option" class="secondary">新增選項</button>
+                <button id="open-market" class="primary">開啟預測</button>
+            </div>
         </section>
 
         <section class="card">
@@ -59,7 +65,9 @@
                 <select id="close-market-select"></select>
             </label>
             <p class="card-help">關閉預測後會立即停止接收新的玩家預測。</p>
-            <button id="close-market" class="primary">關閉預測</button>
+            <div class="actions">
+                <button id="close-market" class="primary">關閉預測</button>
+            </div>
         </section>
 
         <section class="card">
@@ -77,13 +85,17 @@
                 <input type="text" id="settle-custom" placeholder="請輸入獲勝選項 ID">
             </label>
             <p class="card-help">結算預測後會立即記錄勝負並封存結果。</p>
-            <button id="settle-market" class="primary danger">結算預測</button>
+            <div class="actions">
+                <button id="settle-market" class="primary danger">結算預測</button>
+            </div>
         </section>
 
         <section class="card">
             <h2>危險區域</h2>
             <p class="card-help">重設排行榜將清除所有玩家的積分紀錄，此動作無法復原。</p>
-            <button id="reset-leaderboard" class="danger" style="width: 100%;">重設排行榜</button>
+            <div class="actions">
+                <button id="reset-leaderboard" class="danger">重設排行榜</button>
+            </div>
         </section>
     </div>
 

@@ -40,12 +40,12 @@ router.post('/verify', async (req, res) => {
 });
 
 router.post('/open', requireAdmin, (req, res) => {
-    const { id, title, options, reward_points } = req.body || {};
+    const { id, title, options, reward_points, auto_close_seconds } = req.body || {};
     if (!id || !title || !Array.isArray(options) || options.length < 2) {
         return res.status(400).json({ error: 'id/title/options are required and options must contain at least two entries.' });
     }
     try {
-        const market = openMarket({ id, title, options, reward_points });
+        const market = openMarket({ id, title, options, reward_points, auto_close_seconds });
         res.json({ ok: true, market });
     } catch (error) {
         const map = {

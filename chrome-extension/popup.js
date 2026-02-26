@@ -16,6 +16,7 @@ const elements = {
     openMarket: document.getElementById('open-market'),
     openTitle: document.getElementById('open-title'),
     openReward: document.getElementById('open-reward'),
+    openDuration: document.getElementById('open-duration'),
     closeMarket: document.getElementById('close-market'),
     closeMarketSelect: document.getElementById('close-market-select'),
     settleMarket: document.getElementById('settle-market'),
@@ -423,6 +424,11 @@ function updateSettleOptions(marketId, marketsFromArg) {
         });
     }
 
+    const cancel = document.createElement('option');
+    cancel.value = '_CANCEL_';
+    cancel.textContent = '⛔ 流盤 (不發放積分)';
+    elements.settleOption.appendChild(cancel);
+
     const custom = document.createElement('option');
     custom.value = '_custom';
     custom.textContent = '手動輸入選項 ID';
@@ -470,6 +476,7 @@ async function handleOpenMarket() {
 
     const id = Math.random().toString(36).substring(2, 7).toUpperCase();
     const title = elements.openTitle.value.trim();
+    const duration = elements.openDuration ? parseInt(elements.openDuration.value, 10) : 0;
 
     if (!title) {
         setStatus('請輸入預測標題。', 'error');
@@ -482,10 +489,17 @@ async function handleOpenMarket() {
     try {
         await apiFetch('admin/open', {
             method: 'POST',
-            body: { id, title, options, reward_points: rewardPoints },
+            body: { 
+                id, 
+                title, 
+                options, 
+                reward_points: rewardPoints,
+                auto_close_seconds: isNaN(duration) || duration <= 0 ? null : duration
+            },
         });
         setStatus('預測建立成功。', 'success');
         elements.openTitle.value = '';
+        if (elements.openDuration) elements.openDuration.value = '';
         await refreshSnapshot(false);
     } catch (error) {
         setStatus(`預測建立失敗：${error.message}`, 'error');
