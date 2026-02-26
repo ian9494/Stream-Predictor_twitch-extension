@@ -5,7 +5,6 @@ const FALLBACK_STORAGE_KEY = 'shotcall-market-control-settings';
 const elements = {
     adminArea: document.getElementById('admin-area'),
     adminUsername: document.getElementById('admin-username'),
-    adminUsernameInput: document.getElementById('admin-username-input'),
     refresh: document.getElementById('refresh'),
     status: document.getElementById('status'),
     statusText: document.getElementById('status-text'),
@@ -15,7 +14,6 @@ const elements = {
     optionsContainer: document.getElementById('options-container'),
     addOption: document.getElementById('add-option'),
     openMarket: document.getElementById('open-market'),
-    openId: document.getElementById('open-id'),
     openTitle: document.getElementById('open-title'),
     openReward: document.getElementById('open-reward'),
     closeMarket: document.getElementById('close-market'),
@@ -27,6 +25,7 @@ const elements = {
     settleCustom: document.getElementById('settle-custom'),
     marketSummary: document.getElementById('market-summary'),
     optionTemplate: document.getElementById('option-template'),
+    resetLeaderboard: document.getElementById('reset-leaderboard'),
 };
 
 const storage = (() => {
@@ -267,11 +266,10 @@ function getRewardPoints() {
 }
 
 async function saveSettings() {
-    const username = elements.adminUsernameInput?.value.trim();
     const token = elements.adminToken.value.trim();
 
-    if (!username || !token) {
-        setStatus('帳號與金鑰皆不可留白。', 'error');
+    if (!token) {
+        setStatus('金鑰不可留白。', 'error');
         return;
     }
 
@@ -282,15 +280,15 @@ async function saveSettings() {
         // 任務 B: 使用 fetch 發送 POST 請求到後端的 /verify
         const responseData = await apiFetch('admin/verify', {
             method: 'POST',
-            body: { username, token },
+            body: { token },
             bypassSettingsCheck: true // 驗證時跳過 requireSettings
         });
 
         if (responseData.ok) {
             // 任務 C: 驗證成功時更新 state 並儲存
             state.adminToken = token;
-            state.adminUsername = username;
-            await storage.set({ adminToken: token, adminUsername: username });
+            state.adminUsername = responseData.username || 'Admin';
+            await storage.set({ adminToken: token, adminUsername: state.adminUsername });
             
             updateAdminUsername();
             setStatus('驗證成功！設定已儲存。', 'success');
@@ -316,7 +314,6 @@ async function clearSettings() {
     await storage.remove(STORAGE_KEYS);
     state.adminToken = '';
     state.adminUsername = '';
-    if (elements.adminUsernameInput) elements.adminUsernameInput.value = '';
     if (elements.adminToken) elements.adminToken.value = '';
     updateAdminUsername();
     setStatus('帳號已登出。', 'success');
@@ -330,7 +327,6 @@ async function loadSettings() {
     }
     if (saved?.adminUsername) {
         state.adminUsername = saved.adminUsername;
-        if (elements.adminUsernameInput) elements.adminUsernameInput.value = saved.adminUsername;
     }
     updateAdminUsername();
 }
@@ -472,13 +468,9 @@ async function handleOpenMarket() {
         return;
     }
 
-    const id = elements.openId.value.trim();
+    const id = Math.random().toString(36).substring(2, 7).toUpperCase();
     const title = elements.openTitle.value.trim();
 
-    if (!id) {
-        setStatus('請輸入預測 ID。', 'error');
-        return;
-    }
     if (!title) {
         setStatus('請輸入預測標題。', 'error');
         return;
@@ -493,7 +485,6 @@ async function handleOpenMarket() {
             body: { id, title, options, reward_points: rewardPoints },
         });
         setStatus('預測建立成功。', 'success');
-        elements.openId.value = '';
         elements.openTitle.value = '';
         await refreshSnapshot(false);
     } catch (error) {
@@ -564,6 +555,27 @@ async function handleSettleMarket() {
     }
 }
 
+async function handleResetLeaderboard() {
+    if (!confirm('你確定要重設排行榜嗎？這將會清除所有玩家的積分數據，且無法復原！')) {
+        return;
+    }
+
+    setStatus('正在重設排行榜...', 'info');
+    setLoading(elements.resetLeaderboard, true, '重設中...');
+
+    try {
+        await apiFetch('admin/reset-leaderboard', {
+            method: 'POST',
+            body: { confirm: 'yes' },
+        });
+        setStatus('排行榜已成功重設。', 'success');
+    } catch (error) {
+        setStatus(`重設排行榜失敗：${error.message}`, 'error');
+    } finally {
+        setLoading(elements.resetLeaderboard, false);
+    }
+}
+
 function attachEventListeners() {
     elements.saveSettings?.addEventListener('click', (event) => {
         event.preventDefault();
@@ -593,6 +605,11 @@ function attachEventListeners() {
     elements.settleMarket?.addEventListener('click', (event) => {
         event.preventDefault();
         handleSettleMarket();
+    });
+
+    elements.resetLeaderboard?.addEventListener('click', (event) => {
+        event.preventDefault();
+        handleResetLeaderboard();
     });
 
     elements.refresh?.addEventListener('click', (event) => {

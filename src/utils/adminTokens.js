@@ -35,4 +35,10 @@ async function verifyAdminAsync(username, token) {
     return tokens.find(admin => admin.username === username && admin.token === token);
 }
 
-module.exports = { isValidAdminToken, verifyAdminAsync };
+async function findAdminByTokenAsync(token) {
+    if (!token) return null;
+    const tokens = await getAdminTokensAsync();
+    return tokens.find(admin => admin.token === token);
+}
+
+module.exports = { isValidAdminToken, verifyAdminAsync, findAdminByTokenAsync };

@@ -1,7 +1,7 @@
 // src/routes/admin.js
 const express = require('express');
 const { openMarket, closeMarket, settleMarket } = require('../services/marketService');
-const { isValidAdminToken, verifyAdminAsync } = require('../utils/adminTokens');
+const { isValidAdminToken, verifyAdminAsync, findAdminByTokenAsync } = require('../utils/adminTokens');
 
 const router = express.Router();
 
@@ -16,13 +16,13 @@ function requireAdmin(req, res, next) {
 // 任務 A, B, C: 管理員驗證路由 (直接在 root 下或 admin 下皆可)
 // 這裡將其設定在 /verify 以符合需求
 router.post('/verify', async (req, res) => {
-    const { username, token } = req.body || {};
-    if (!username || !token) {
-        return res.status(400).json({ error: 'Username and token are required.' });
+    const { token } = req.body || {};
+    if (!token) {
+        return res.status(400).json({ error: 'Token is required.' });
     }
 
     try {
-        const admin = await verifyAdminAsync(username, token);
+        const admin = await findAdminByTokenAsync(token);
         if (admin) {
             // 任務 C: 匹配成功 200 OK + 權限資訊
             return res.status(200).json({
@@ -32,7 +32,7 @@ router.post('/verify', async (req, res) => {
             });
         } else {
             // 任務 C: 匹配失敗 401 Unauthorized
-            return res.status(401).json({ error: 'Invalid username or token.' });
+            return res.status(401).json({ error: 'Invalid token.' });
         }
     } catch (e) {
         return res.status(500).json({ error: 'Internal server error.' });

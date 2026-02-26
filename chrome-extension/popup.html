@@ -8,7 +8,7 @@
 </head>
 <body>
     <header>
-        <h1>實況預測控制台</h1>
+        <h1>實況預測控制台 V1.1</h1>
         <button id="refresh" class="secondary">重新整理</button>
     </header>
 
@@ -19,10 +19,6 @@
     <section class="card card_relative">
         <h2>管理者驗證</h2>
         <div id="admin-username" class="admin-username"></div>
-        <label>
-            管理員帳號
-            <input type="text" id="admin-username-input" placeholder="請輸入管理員帳號">
-        </label>
         <label>
             管理者金鑰
             <input type="password" id="admin-token" placeholder="請輸入管理者金鑰">
@@ -41,10 +37,6 @@
 
         <section class="card">
             <h2>開啟預測</h2>
-            <label>
-                預測 ID
-                <input type="text" id="open-id" placeholder="例：match-2025-10-15">
-            </label>
             <label>
                 標題
                 <input type="text" id="open-title" placeholder="範例：第三場誰會勝利？">
@@ -86,6 +78,12 @@
             </label>
             <p class="card-help">結算預測後會立即記錄勝負並封存結果。</p>
             <button id="settle-market" class="primary danger">結算預測</button>
+        </section>
+
+        <section class="card">
+            <h2>危險區域</h2>
+            <p class="card-help">重設排行榜將清除所有玩家的積分紀錄，此動作無法復原。</p>
+            <button id="reset-leaderboard" class="danger" style="width: 100%;">重設排行榜</button>
         </section>
     </div>
 
