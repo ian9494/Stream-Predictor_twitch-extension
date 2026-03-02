@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>投票組件 (Video Component)</title>
+    <!-- Twitch JS SDK -->
+    <script src="https://extension-files.twitch.tv/helper/v1/twitch-ext.min.js"></script>
+    <link rel="stylesheet" href="video.css">
+</head>
+<body>
+    <div id="app" class="video-component">
+        <div id="toggle-handle" class="toggle-handle">
+            <span class="icon">📊</span>
+        </div>
+        <div id="main-container" class="main-container hidden">
+            <div class="header">
+                <h1 id="title">投票面板</h1>
+                <div id="close-btn" class="close-btn">×</div>
+            </div>
+            <div class="content-scroll">
+                <div id="version" class="version"></div>
+                <div id="self-info" class="card"></div>
+                <div id="leaderboard" class="card"></div>
+                <div id="market"></div>
+                <div id="msg" class="msg"></div>
+            </div>
+        </div>
+    </div>
+    <script src="video.js"></script>
+</body>
+</html>

@@ -1,0 +1,102 @@
+body {
+    font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+    margin: 0;
+    padding: 0;
+    overflow: hidden;
+    background: transparent;
+    color: #eaeaea;
+}
+
+.video-component {
+    position: absolute;
+    right: 10px;
+    top: 50%;
+    transform: translateY(-50%);
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    pointer-events: none; /* Make overlay non-blocking */
+}
+
+.toggle-handle {
+    width: 48px;
+    height: 48px;
+    background: rgba(145, 71, 255, 0.9);
+    border-radius: 50%;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    cursor: pointer;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.5);
+    transition: transform 0.2s, background 0.2s;
+    pointer-events: auto; /* Enable interaction */
+    z-index: 1001;
+    color: #fff;
+    font-size: 24px;
+}
+
+.toggle-handle:hover {
+    transform: scale(1.1);
+    background: rgba(145, 71, 255, 1);
+}
+
+.main-container {
+    width: 260px;
+    max-height: 85vh;
+    background: rgba(26, 26, 32, 0.95);
+    border-radius: 12px;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.6);
+    margin-right: 5px;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    pointer-events: auto; /* Enable interaction */
+    transition: opacity 0.3s, transform 0.3s;
+    z-index: 1000;
+}
+
+.main-container.hidden {
+    opacity: 0;
+    transform: translateX(20px);
+    pointer-events: none;
+    display: none;
+}
+
+.header {
+    background: #9147ff;
+    padding: 10px 15px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+#title {
+    margin: 0;
+    font-size: 16px;
+    font-weight: bold;
+}
+
+.close-btn {
+    font-size: 24px;
+    cursor: pointer;
+    line-height: 1;
+}
+
+.content-scroll {
+    padding: 12px;
+    overflow-y: auto;
+    flex: 1;
+}
+
+#version { font-size:10px; color:#888; margin-bottom:8px; }
+.card { background: rgba(50, 50, 60, 0.5); border-radius: 8px; padding: 12px; margin-bottom: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.25); }
+.row { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 8px; }
+.btn { padding: 8px 10px; border: none; border-radius: 8px; cursor: pointer; background: #9147ff; color: white; font-size: 13px; }
+.btn:disabled { opacity: 0.6; cursor: not-allowed; }
+.option { display: inline-flex; align-items: center; gap: 4px; }
+.small { font-size: 11px; opacity: 0.8; }
+.msg { margin-top: 8px; min-height: 18px; font-size: 12px; text-align: center; }
+
+table { width: 100%; border-collapse: collapse; font-size: 12px; }
+th, td { padding: 4px; border-bottom: 1px solid rgba(255,255,255,0.1); }
+th { text-align: left; opacity: 0.7; }
